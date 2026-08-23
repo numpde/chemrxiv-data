@@ -1,0 +1,53 @@
+{
+  "posted_date": "2026-08-18",
+  "retrieved_at": "2026-08-23T21:39:27.245426Z",
+  "source": {
+    "name": "Crossref REST API",
+    "endpoint": "https://api.crossref.org/prefixes/10.26434/works",
+    "query": {
+      "filter": "type:posted-content,from-posted-date:2026-08-18,until-posted-date:2026-08-18",
+      "rows": 1000,
+      "select": "DOI,posted"
+    },
+    "pagination": "cursor"
+  },
+  "count": 36,
+  "dois": [
+    "10.26434/chemrxiv.15001529/v2",
+    "10.26434/chemrxiv.15002066/v2",
+    "10.26434/chemrxiv.15004808/v2",
+    "10.26434/chemrxiv.15006503/v2",
+    "10.26434/chemrxiv.15006690/v2",
+    "10.26434/chemrxiv.15006979/v2",
+    "10.26434/chemrxiv.15007426/v2",
+    "10.26434/chemrxiv.15007559/v1",
+    "10.26434/chemrxiv.15007560/v1",
+    "10.26434/chemrxiv.15007561/v1",
+    "10.26434/chemrxiv.15007562/v1",
+    "10.26434/chemrxiv.15007563/v1",
+    "10.26434/chemrxiv.15007564/v1",
+    "10.26434/chemrxiv.15007565/v1",
+    "10.26434/chemrxiv.15007566/v1",
+    "10.26434/chemrxiv.15007567/v1",
+    "10.26434/chemrxiv.15007568/v1",
+    "10.26434/chemrxiv.15007569/v1",
+    "10.26434/chemrxiv.15007570/v1",
+    "10.26434/chemrxiv.15007571/v1",
+    "10.26434/chemrxiv.15007572/v1",
+    "10.26434/chemrxiv.15007573/v1",
+    "10.26434/chemrxiv.15007574/v1",
+    "10.26434/chemrxiv.15007575/v1",
+    "10.26434/chemrxiv.15007576/v1",
+    "10.26434/chemrxiv.15007577/v1",
+    "10.26434/chemrxiv.15007578/v1",
+    "10.26434/chemrxiv.15007579/v1",
+    "10.26434/chemrxiv.15007582/v1",
+    "10.26434/chemrxiv.15007583/v1",
+    "10.26434/chemrxiv.15007584/v1",
+    "10.26434/chemrxiv.15007585/v1",
+    "10.26434/chemrxiv.15007587/v1",
+    "10.26434/chemrxiv.15007588/v1",
+    "10.26434/chemrxiv.15007589/v1",
+    "10.26434/chemrxiv.15007590/v1"
+  ]
+}
