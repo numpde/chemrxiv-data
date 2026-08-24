@@ -416,7 +416,11 @@ def collect_html_files(paths: list[Path]) -> tuple[list[Path], list[str]]:
             else:
                 files.add(path)
         elif path.is_dir():
-            found = set(path.rglob("*.html"))
+            found = {
+                candidate
+                for candidate in path.rglob("*.html")
+                if candidate.name != "index.html"
+            }
             if not found:
                 errors.append(f"{path}:1: no HTML files found")
             files.update(found)
@@ -431,8 +435,8 @@ def main() -> int:
         "paths",
         nargs="*",
         type=Path,
-        default=[Path("ext/nmr")],
-        help="HTML files or directories to validate (default: ext/nmr)",
+        default=[Path("ext")],
+        help="HTML files or directories to validate (default: ext)",
     )
     args = parser.parse_args()
     files, path_errors = collect_html_files(args.paths)
