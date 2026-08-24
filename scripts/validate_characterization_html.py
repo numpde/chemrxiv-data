@@ -108,6 +108,19 @@ class SemanticValidator:
         if not text_content(node).strip():
             self.problem(node, f"<{node.tag}> cannot be empty")
 
+    def expect_paper_title_sentence_case(self, cite: Node) -> None:
+        title = text_content(cite)
+        if not title.strip():
+            return
+        word_initials = [
+            next((character for character in word if character.isalpha()), None)
+            for word in title.split()
+        ]
+        letter_initials = [initial for initial in word_initials if initial is not None]
+        lowercase_words = sum(initial.islower() for initial in letter_initials)
+        if not letter_initials or lowercase_words * 2 <= len(letter_initials):
+            self.problem(cite, "paper title must use sentence case; most words must start lowercase")
+
     def validate(self, root: Node) -> list[Problem]:
         document_children = elements(root)
         if len(document_children) != 1 or document_children[0].tag != "html":
@@ -202,6 +215,7 @@ class SemanticValidator:
         for node in (cite, time, anchor):
             self.expect_plain_text(node)
         self.expect_attrs(cite, [])
+        self.expect_paper_title_sentence_case(cite)
         year = text_content(time)
         self.expect_attrs(time, [("datetime", year)])
         if not re.fullmatch(r"\d{4}", year):
