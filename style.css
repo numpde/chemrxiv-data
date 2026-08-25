@@ -1,0 +1,115 @@
+:root {
+  font-family: system-ui, sans-serif;
+  line-height: 1.55;
+  color: #1f2328;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  max-width: 90rem;
+  margin: auto;
+  padding: clamp(1rem, 4vw, 3rem);
+  overflow-x: auto;
+}
+
+h1,
+h2 {
+  line-height: 1.2;
+}
+
+h1 {
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+}
+
+p,
+li,
+header {
+  max-width: 72ch;
+}
+
+a {
+  color: #0969da;
+  overflow-wrap: anywhere;
+  text-underline-offset: 0.15em;
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
+}
+
+nav,
+header,
+article {
+  margin-block: 0 2rem;
+}
+
+header {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #d0d7de;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+
+caption,
+th,
+td {
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+caption {
+  font-weight: 700;
+  background: #f6f8fa;
+}
+
+th,
+td {
+  border-bottom: 1px solid #d8dee4;
+}
+
+thead th {
+  white-space: nowrap;
+  border-bottom-width: 2px;
+}
+
+thead + tbody td {
+  text-align: center;
+  white-space: nowrap;
+}
+
+tbody th {
+  font-weight: 600;
+}
+
+tbody tr:nth-child(even) {
+  background: #f6f8fa;
+}
+
+article footer {
+  margin-top: 0.4rem;
+  color: #59636e;
+  font-size: 0.875rem;
+}
+
+code {
+  padding: 0.1em 0.3em;
+  background: #f6f8fa;
+  border-radius: 0.2rem;
+}
+
+@media print {
+  main {
+    max-width: none;
+    padding: 0;
+    overflow: visible;
+  }
+}

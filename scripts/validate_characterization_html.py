@@ -14,6 +14,7 @@ from pathlib import Path
 
 
 INLINE_TAGS = {"title", "p", "caption", "th", "td", "footer"}
+VOID_TAGS = {"link", "meta"}
 MARKER_BEFORE_NUMBER = re.compile(r"(?:•◊|•|◊)([ \t]*)(?=[+−-]?(?:\d|\.\d))")
 SOURCE_PRESENTATION_TERM_IN_LABEL = re.compile(r"\b(?:table|fig(?:ure)?)s?\b", re.IGNORECASE)
 PAGE_ITEM = r"S?\d+(?:–S?\d+)?"
@@ -46,7 +47,7 @@ class DocumentParser(HTMLParser):
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         node = Node(tag, attrs, self.getpos()[0])
         self.stack[-1].children.append(node)
-        if tag != "meta":
+        if tag not in VOID_TAGS:
             self.stack.append(node)
 
     def handle_endtag(self, tag: str) -> None:
@@ -142,12 +143,17 @@ class SemanticValidator:
 
     def validate_head(self, head: Node) -> str | None:
         self.expect_attrs(head, [])
-        children = self.expect_children(head, ["meta", "title"])
+        children = self.expect_children(head, ["meta", "meta", "title", "link"])
         if children is None:
             return None
-        meta, title = children
-        self.expect_attrs(meta, [("charset", "utf-8")])
+        charset, viewport, title, stylesheet = children
+        self.expect_attrs(charset, [("charset", "utf-8")])
+        self.expect_attrs(
+            viewport,
+            [("name", "viewport"), ("content", "width=device-width, initial-scale=1")],
+        )
         self.expect_attrs(title, [])
+        self.expect_attrs(stylesheet, [("rel", "stylesheet"), ("href", "../../style.css")])
         self.expect_plain_text(title)
         match = re.fullmatch(r"Compound characterization data — .+, (\d{4})", text_content(title))
         if not match:
@@ -370,7 +376,7 @@ def separate_children(parent: Node, previous: Node, current: Node) -> bool:
 
 def render_element(node: Node, indentation: int = 0) -> list[str]:
     prefix = " " * indentation
-    if node.tag == "meta":
+    if node.tag in VOID_TAGS:
         return [prefix + opening_tag(node)]
     if node.tag in INLINE_TAGS:
         return [prefix + render_inline(node)]
