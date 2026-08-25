@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Analytical characterization data scope</title>
+</head>
+<body>
+  <main>
+    <h1>Analytical characterization data scope</h1>
+
+    <section>
+      <h2>Purpose</h2>
+      <p>Preserve source-written records that can train machine-learning models, other AI systems, or people to recognize, interpret, or predict analytical characterization. This collection covers analytical records, not every experimental result in a paper.</p>
+    </section>
+
+    <section>
+      <h2>Admission</h2>
+      <p>A retained record must stand on its own: the HTML identifies the source-defined compound, material, sample, mixture, state, or series; the analytical method or measured property; conditions the source attaches to the result or uses to distinguish the measured state; and the source-explicit result from the paper’s own experiment. It must be usable without consulting an omitted figure, guessing a comparator, or reconstructing a value.</p>
+      <p>Retain every source-defined analytical block that passes this test. In a mixed block, retain every eligible analytical result and sample member while applying the omissions below. Do not cherry-pick values or repeat a narrative restatement of the same data.</p>
+    </section>
+
+    <section>
+      <h2>Retain</h2>
+      <ul>
+        <li>Values and qualitative observations explicitly printed in prose, tables, captions, legends, or annotations</li>
+        <li>NMR peak lists</li>
+        <li>Author-written assignments that map an observed analytical feature to a component, identity, state, phase, or artefact, with the source’s uncertainty preserved</li>
+        <li>Source-printed routine analytical reference values calculated from a stated composition, formula, or adduct</li>
+        <li>Source-printed estimates, fits, ratios, and averages derived from a retained experimental measurement when the source states the basis and any model or assumption needed to understand the value</li>
+        <li>Explicit non-detections from completed measurements</li>
+        <li>Reaction-monitoring records that name the analytical method and report a time-resolved series or the signal, species, or composition of a defined sampled state</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Omit</h2>
+      <ul>
+        <li>Values inferred from spectra, plots, images, structures, or graphical position</li>
+        <li>Simulations, predicted sample properties, calculated spectra or patterns, and assignments that the source states were obtained from or depend on computation; retain an independently reported experimental assignment but omit its computational rationale</li>
+        <li>Qualitative observations that do not state an observed feature, state, or result; relational observations that also omit the direction or comparator</li>
+        <li>Proposed mechanisms, causes, and explanations beyond a local analytical feature assignment</li>
+        <li>Biological or functional assays and values that report how well a sample performs an intended task—including catalytic activity, sensing performance, energy storage or delivery, separation throughput, device efficiency, or durability—rather than what the sample is, contains, or exhibits under analytical measurement</li>
+        <li>Synthesis, work-up, purification, synthetic or isolated yield, reaction-screening or optimization endpoints, lone terminal conversion or consumption outcomes, isolation, incidental isolation appearance, and preparation details</li>
+        <li>Literature-only comparator data and generic statements that identity, purity, structure, or literature agreement was confirmed without a textual analytical result</li>
+        <li>Unavailable, unacquired, or unsuccessful measurements that yielded no result</li>
+        <li>Anything inferred, calculated, corrected, reconciled, or interpreted by the extractor</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Representation</h2>
+      <p>Collection-authored captions and row labels identify the source owner, method, and conditions without adding scientific meaning. Preserve result text, values, units, qualifiers, notation, and anomalies without scientific paraphrase. Never recompute a value or resolve a discrepancy.</p>
+      <p>Use one <code>&lt;article&gt;</code> and one <code>&lt;table&gt;</code> for each owner or explicitly joint series. The <code>&lt;caption&gt;</code> contains its source name or description. Put a source identifier in an Identifier row when present. Every other row reports a method or measured property and its result, or a source-explicit method-specific condition, sample qualifier, or reporting qualifier attached to that result.</p>
+      <p>Represent an exact Main/SI duplicate once and cite both sources. Keep differing results separate with unambiguous provenance. Put page provenance in the article <code>&lt;footer&gt;</code>, using physical PDF pages for <cite>Main</cite> and printed SI page labels when present, otherwise physical SI PDF pages. Do not put page, figure, or table references in captions or method labels.</p>
+      <p>Cite the DOI in the document header and do not link to local files. If searched data were not found, say what was not found and where, using “was not found” or “were not found.” Describe the verified supporting-information situation precisely. State when it is appended to the main paper. Otherwise, if no separate supporting information PDF was found among the files available from the ChemRxiv record, state that and, when true, that the main paper refers to supporting information. Do not claim that supporting information does not exist. Do not create empty articles or append terminal punctuation to captions, cells, or footers.</p>
+    </section>
+  </main>
+</body>
+</html>
