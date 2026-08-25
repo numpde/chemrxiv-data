@@ -15,6 +15,7 @@ from pathlib import Path
 
 INLINE_TAGS = {"title", "p", "caption", "th", "td", "footer"}
 MARKER_BEFORE_NUMBER = re.compile(r"(?:•◊|•|◊)([ \t]*)(?=[+−-]?(?:\d|\.\d))")
+SOURCE_PRESENTATION_TERM_IN_LABEL = re.compile(r"\b(?:table|fig(?:ure)?)s?\b", re.IGNORECASE)
 PAGE_ITEM = r"S?\d+(?:–S?\d+)?"
 
 
@@ -266,8 +267,11 @@ class SemanticValidator:
             self.expect_attrs(value, [])
             self.expect_plain_text(label)
             self.expect_plain_text(value)
-            if text_content(label).strip() == "Product":
+            label_text = text_content(label).strip()
+            if label_text == "Product":
                 self.problem(label, "use Identifier for a compound identifier, not Product")
+            if SOURCE_PRESENTATION_TERM_IN_LABEL.search(label_text):
+                self.problem(label, "measurement labels must describe the measurement, not a source table or figure")
             self.expect_no_terminal_punctuation(label, "measurement label")
             self.expect_no_terminal_punctuation(value, "measurement text")
 
