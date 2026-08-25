@@ -56,17 +56,33 @@ CALCULATED_FORMULA = re.compile(
     r"(?P<formula>[⁰¹²³⁴⁵⁶⁷⁸⁹]*[A-Z][A-Za-z0-9⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉()+−-]*)",
     re.IGNORECASE,
 )
+PARENTHESIZED_RADICAL_FORMULA = re.compile(
+    r"\((?P<formula>[A-Z][A-Za-z0-9⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉()+−-]{1,64})\)"
+    r"(?=(?:"
+    r"(?:(?:[1-9]\d*)?[+−-]|(?:[⁰¹²³⁴⁵⁶⁷⁸⁹]+)?[⁺⁻])[˙•∙⋅⸳··․]"
+    r"|[˙•∙⋅⸳··․](?:(?:[1-9]\d*)?[+−-]|(?:[⁰¹²³⁴⁵⁶⁷⁸⁹]+)?[⁺⁻])"
+    r"))"
+)
 BRACKETED_ION_WITH_BASELINE_CHARGE = re.compile(
-    r"\[M[^\]\n]{0,64}\][•˙]?(?:"
+    r"\[M[^\]\n]{0,64}\](?:"
     r"(?:[1-9]\d*)?[+−-]"
     r"|[1-9]\d*[⁺⁻]"
     r"|[⁰¹²³⁴⁵⁶⁷⁸⁹]+[+−-]"
-    r")(?![A-Za-z0-9])"
+    r")(?![A-Za-z0-9˙•∙⋅⸳··․])"
 )
-PARENTHESIZED_RADICAL_ION_WITH_BASELINE_CHARGE = re.compile(
-    r"\([A-Z][A-Za-z0-9⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉()+−-]{1,64}\)[•˙][+−-]"
+NONCANONICAL_RADICAL_ION = re.compile(
+    r"(?:"
+    r"\[M[^\]\n]{0,64}\]"
+    r"|\([A-Z][A-Za-z0-9⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉()+−-]{1,64}\)"
+    r")(?:"
+    r"[˙•∙⋅⸳··․](?:(?:[1-9]\d*)?[+−-]|(?:[⁰¹²³⁴⁵⁶⁷⁸⁹]+)?[⁺⁻])"
+    r"|(?:(?:[1-9]\d*)?[+−-]|(?:[⁰¹²³⁴⁵⁶⁷⁸⁹]+)?[⁺⁻])[•∙⋅⸳··․]"
+    r"|(?:[1-9]\d*)?[+−-]˙"
+    r")"
 )
-INVERTED_BRACKETED_RADICAL_ION = re.compile(r"\[M(?:[-+−⁺⁻][•˙])\]")
+INVERTED_BRACKETED_RADICAL_ION = re.compile(
+    r"\[M(?:[-+−⁺⁻][˙•∙⋅⸳··․]|[˙•∙⋅⸳··․][-+−⁺⁻])\]"
+)
 FORMULA_FIELD_LABEL = re.compile(r"(?:^|,\s)(?:empirical\s+)?formula$", re.IGNORECASE)
 PAGE_ITEM = r"S?\d+(?:–S?\d+)?"
 
@@ -506,40 +522,47 @@ def validate_typographic_scripts(line_number: int, line: str) -> list[Problem]:
         notation = bounded_notation(formula)
         if notation not in invalid_formulas:
             invalid_formulas.append(notation)
+    for match in PARENTHESIZED_RADICAL_FORMULA.finditer(rendered_line):
+        formula = match.group("formula")
+        if not re.search(r"[0-9]", formula):
+            continue
+        notation = bounded_notation(formula)
+        if notation not in invalid_formulas:
+            invalid_formulas.append(notation)
     if invalid_formulas:
         problems.append(
             Problem(
                 line_number,
-                "replace baseline indices or charge signs in calculated formula "
+                "replace baseline indices or charge signs in formula "
                 f"{describe_invalid_notation(invalid_formulas)} with Unicode subscript or "
                 "superscript characters, for example C₈H₁₃NO₂Na or C₁₉H₂₆N₆O₅⁺",
             )
         )
     invalid_ion_charges = find_invalid_notation(
         rendered_line,
-        (BRACKETED_ION_WITH_BASELINE_CHARGE, PARENTHESIZED_RADICAL_ION_WITH_BASELINE_CHARGE),
+        (BRACKETED_ION_WITH_BASELINE_CHARGE,),
     )
     if invalid_ion_charges:
         problems.append(
             Problem(
                 line_number,
-                "replace baseline ion charge "
+                "replace baseline bracketed-ion charge "
                 f"{describe_invalid_notation(invalid_ion_charges)} with Unicode superscript "
-                "characters, for example [M+H]⁺, [M]•⁺ or [M]˙⁺, and "
-                "[M−15NTf₂⁻]¹⁵⁺",
+                "characters, for example [M+H]⁺ or [M−15NTf₂⁻]¹⁵⁺",
             )
         )
-    inverted_radical_ions = find_invalid_notation(
+    noncanonical_radical_ions = find_invalid_notation(
         rendered_line,
-        (INVERTED_BRACKETED_RADICAL_ION,),
+        (NONCANONICAL_RADICAL_ION, INVERTED_BRACKETED_RADICAL_ION),
     )
-    if inverted_radical_ions:
+    if noncanonical_radical_ions:
         problems.append(
             Problem(
                 line_number,
-                "write bracketed radical-ion notation "
-                f"{describe_invalid_notation(inverted_radical_ions)} with the radical and "
-                "superscript charge after the brackets, for example [M]˙⁺",
+                "write mass-spectrometry radical-ion notation "
+                f"{describe_invalid_notation(noncanonical_radical_ions)} with the superscript "
+                "charge followed by ˙ (U+02D9 DOT ABOVE), for example [M]⁺˙ or "
+                "(C₂₆H₁₉N₃O₃Cr)⁺˙",
             )
         )
     return problems
