@@ -31,6 +31,10 @@ BASELINE_POWER_OF_TEN_EXPONENT = re.compile(
     r"(?:\b10−[1-9]\d*|(?:×|·|\*)[ \t]*10-[1-9]\d*)"
 )
 INCOMPLETE_SUPERSCRIPT_EXPONENT = re.compile(r"(?:[−-][⁰¹²³⁴⁵⁶⁷⁸⁹]+|⁻\d+)")
+BASELINE_NMR_NUCLEUS = re.compile(
+    r"(?<![A-Za-z0-9])[1-9]\d{0,2}(?:H|C|N|F|P|Li|B)(?=[ \t]+(?:NMR|PFG)\b)"
+)
+BASELINE_COUPLING_ORDER = re.compile(r"(?<![A-Za-z0-9])[1-9]J(?=[ \t]*=)")
 PAGE_ITEM = r"S?\d+(?:–S?\d+)?"
 
 
@@ -363,6 +367,26 @@ def validate_markers(line_number: int, line: str) -> list[Problem]:
     return problems
 
 
+def find_invalid_notation(text: str, patterns: tuple[re.Pattern[str], ...]) -> list[str]:
+    notations: list[str] = []
+    for match in sorted(
+        (match for pattern in patterns for match in pattern.finditer(text)),
+        key=lambda match: match.start(),
+    ):
+        notation = match.group()
+        if len(notation) > 32:
+            notation = notation[:29] + "..."
+        if notation not in notations:
+            notations.append(notation)
+    return notations
+
+
+def describe_invalid_notation(notations: list[str]) -> str:
+    shown = ", ".join(repr(notation) for notation in notations[:3])
+    omitted = len(notations) - 3
+    return shown + (f" and {omitted} more" if omitted > 0 else "")
+
+
 def validate_typographic_scripts(line_number: int, line: str) -> list[Problem]:
     problems: list[Problem] = []
     rendered_line = unescape(line)
@@ -370,32 +394,36 @@ def validate_typographic_scripts(line_number: int, line: str) -> list[Problem]:
         problems.append(
             Problem(line_number, "use Unicode superscript or subscript characters, not HTML elements")
         )
-    invalid_exponents: list[str] = []
-    exponent_patterns = (
-        BASELINE_UNIT_EXPONENT,
-        BASELINE_POSITIVE_UNIT_EXPONENT,
-        CARET_EXPONENT,
-        BASELINE_POWER_OF_TEN_EXPONENT,
-        INCOMPLETE_SUPERSCRIPT_EXPONENT,
+    invalid_exponents = find_invalid_notation(
+        rendered_line,
+        (
+            BASELINE_UNIT_EXPONENT,
+            BASELINE_POSITIVE_UNIT_EXPONENT,
+            CARET_EXPONENT,
+            BASELINE_POWER_OF_TEN_EXPONENT,
+            INCOMPLETE_SUPERSCRIPT_EXPONENT,
+        ),
     )
-    for match in sorted(
-        (match for pattern in exponent_patterns for match in pattern.finditer(rendered_line)),
-        key=lambda match: match.start(),
-    ):
-        notation = match.group()
-        if len(notation) > 32:
-            notation = notation[:29] + "..."
-        if notation not in invalid_exponents:
-            invalid_exponents.append(notation)
     if invalid_exponents:
-        shown = ", ".join(repr(notation) for notation in invalid_exponents[:3])
-        omitted = len(invalid_exponents) - 3
-        suffix = f" and {omitted} more" if omitted > 0 else ""
         problems.append(
             Problem(
                 line_number,
-                f"replace baseline exponent notation {shown}{suffix} with Unicode superscript "
+                "replace baseline exponent notation "
+                f"{describe_invalid_notation(invalid_exponents)} with Unicode superscript "
                 "characters, for example cm⁻¹, m², or 10⁵",
+            )
+        )
+    invalid_prefixes = find_invalid_notation(
+        rendered_line,
+        (BASELINE_NMR_NUCLEUS, BASELINE_COUPLING_ORDER),
+    )
+    if invalid_prefixes:
+        problems.append(
+            Problem(
+                line_number,
+                "replace baseline nuclear or coupling notation "
+                f"{describe_invalid_notation(invalid_prefixes)} with Unicode superscript "
+                "characters, for example ¹H NMR or ³J = 7.2 Hz",
             )
         )
     return problems
