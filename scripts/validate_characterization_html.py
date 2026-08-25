@@ -37,18 +37,27 @@ CARET_EXPONENT = re.compile(r"\^[+−-]?\d+")
 BASELINE_POWER_OF_TEN_EXPONENT = re.compile(
     r"(?:\b10−[1-9]\d*|(?:×|·|\*)[ \t]*10-[1-9]\d*)"
 )
-NUCLEAR_ISOTOPE = r"(?:1H|6Li|7Li|11B|13C|15N|17O|19F|27Al|31P)"
-SUPERSCRIPT_NUCLEAR_ISOTOPE = r"(?:¹H|⁶Li|⁷Li|¹¹B|¹³C|¹⁵N|¹⁷O|¹⁹F|²⁷Al|³¹P)"
+NUCLEAR_ISOTOPE = r"(?:1H|6Li|7Li|11B|13C|15N|17O|19F|27Al|31P|59Co)"
+SUPERSCRIPT_NUCLEAR_ISOTOPE = r"(?:¹H|⁶Li|⁷Li|¹¹B|¹³C|¹⁵N|¹⁷O|¹⁹F|²⁷Al|³¹P|⁵⁹Co)"
+ANY_NUCLEAR_ISOTOPE = rf"(?:{NUCLEAR_ISOTOPE}|{SUPERSCRIPT_NUCLEAR_ISOTOPE})"
+BASELINE_NUCLEAR_ISOTOPE_LIST = re.compile(
+    rf"<td>(?=(?:{ANY_NUCLEAR_ISOTOPE}, )*{NUCLEAR_ISOTOPE}(?:, |</td>))"
+    rf"{ANY_NUCLEAR_ISOTOPE}(?:, {ANY_NUCLEAR_ISOTOPE})*</td>"
+)
 # A nomenclature hyphen may precede a superscript isotope, as in ``-¹⁵N``.
 INCOMPLETE_SUPERSCRIPT_EXPONENT = re.compile(
     rf"(?:[−-](?!{SUPERSCRIPT_NUCLEAR_ISOTOPE})[⁰¹²³⁴⁵⁶⁷⁸⁹]+|⁻\d+)"
 )
 BASELINE_NUCLEAR_ISOTOPE = re.compile(
+    rf"(?:(?<=<th scope=\"row\">){NUCLEAR_ISOTOPE}|"
     r"(?<![A-Za-z0-9])(?:"
     rf"{NUCLEAR_ISOTOPE}"
-    r"(?=(?:[^<\n]{0,48}\b(?:NMR|PFG|HSQC|HMBC|HETCOR)\b|-labelled\b))"
+    r"(?=(?:[{}]|"
+    r"[^<\n]{0,48}(?:[A-Za-z]*NMR\b|\b(?:PFG|HSQC|HMBC|HETCOR|shift|frequency|signal|nucleus|nuclei)\b)"
+    r"|-labelled\b))"
+    rf"|(?<=[–→↔]){NUCLEAR_ISOTOPE}"
     r"|7Li(?=[ \t]+longitudinal relaxation\b)"
-    r")|(?<=[–-])15N(?![A-Za-z0-9])"
+    r")|(?<=[–-])15N(?![A-Za-z0-9]))"
 )
 BASELINE_COUPLING_ORDER = re.compile(
     r"(?<![A-Za-z0-9])[1-9]J(?=[A-Za-z,]*[ \t]*(?:=|~))"
@@ -618,7 +627,11 @@ def validate_typographic_scripts(line_number: int, line: str) -> list[Problem]:
         )
     invalid_prefixes = find_invalid_notation(
         rendered_line,
-        (BASELINE_NUCLEAR_ISOTOPE, BASELINE_COUPLING_ORDER),
+        (
+            BASELINE_NUCLEAR_ISOTOPE_LIST,
+            BASELINE_NUCLEAR_ISOTOPE,
+            BASELINE_COUPLING_ORDER,
+        ),
     )
     if invalid_prefixes:
         problems.append(
@@ -813,12 +826,20 @@ def validate_text(source: str) -> list[Problem]:
     return sorted(problems, key=lambda problem: (problem.line, problem.message))
 
 
+def validate_navigation_text(source: str) -> list[Problem]:
+    """Check shared notation policy without assuming the characterization schema."""
+
+    problems: list[Problem] = []
+    for line_number, line in enumerate(source.splitlines(), 1):
+        problems.extend(validate_typographic_scripts(line_number, line))
+    return sorted(problems, key=lambda problem: (problem.line, problem.message))
+
+
 def collect_html_files(paths: list[Path]) -> tuple[list[Path], list[str]]:
     """Resolve unique collection HTML files and path-specific CLI errors.
 
-    Directories are searched recursively for lowercase ``*.html`` names and
-    exclude ``index.html`` because navigation pages use another schema. A file
-    named directly is accepted by its case-insensitive suffix, including an index.
+    Directories are searched recursively for lowercase ``*.html`` names. Index
+    pages participate in shared notation checks but use no characterization schema.
     """
 
     files: set[Path] = set()
@@ -830,16 +851,9 @@ def collect_html_files(paths: list[Path]) -> tuple[list[Path], list[str]]:
             else:
                 files.add(path)
         elif path.is_dir():
-            found = {
-                candidate
-                for candidate in path.rglob("*.html")
-                if candidate.name != "index.html"
-            }
+            found = set(path.rglob("*.html"))
             if not found:
-                errors.append(
-                    f"{path}:1: no collection .html files found; directory discovery "
-                    "excludes index.html"
-                )
+                errors.append(f"{path}:1: no collection .html files found")
             files.update(found)
         else:
             errors.append(f"{path}:1: path was not found")
@@ -861,8 +875,8 @@ def main() -> int:
         type=Path,
         default=[Path("ext")],
         help=(
-            "collection HTML files, or directories searched recursively for non-index "
-            ".html files (default: ext)"
+            "collection HTML files, or directories searched recursively for .html files "
+            "(default: ext)"
         ),
     )
     args = parser.parse_args()
@@ -878,7 +892,11 @@ def main() -> int:
             print(f"{path}:1: {error}", file=sys.stderr)
             failed = True
             continue
-        problems = validate_text(source)
+        problems = (
+            validate_navigation_text(source)
+            if path.name == "index.html"
+            else validate_text(source)
+        )
         failed = failed or bool(problems)
         for problem in problems:
             print(f"{path}:{problem.line}: {problem.message}", file=sys.stderr)
