@@ -37,6 +37,11 @@ CARET_EXPONENT = re.compile(r"\^[+−-]?\d+")
 BASELINE_POWER_OF_TEN_EXPONENT = re.compile(
     r"(?:\b10−[1-9]\d*|(?:×|·|\*)[ \t]*10-[1-9]\d*)"
 )
+# A word character before the number marks source notation such as ``φ1%``.
+# Modifiers such as ``wt%`` have no numerical value immediately before ``%``.
+UNSPACED_PERCENTAGE_VALUE = re.compile(
+    r"(?<!\w)[+−-]?(?:[0-9]+(?:[.,][0-9]+)?|\.[0-9]+)%"
+)
 NUCLEAR_ISOTOPE = r"(?:1H|6Li|7Li|11B|13C|15N|17O|19F|27Al|31P|59Co)"
 SUPERSCRIPT_NUCLEAR_ISOTOPE = r"(?:¹H|⁶Li|⁷Li|¹¹B|¹³C|¹⁵N|¹⁷O|¹⁹F|²⁷Al|³¹P|⁵⁹Co)"
 ANY_NUCLEAR_ISOTOPE = rf"(?:{NUCLEAR_ISOTOPE}|{SUPERSCRIPT_NUCLEAR_ISOTOPE})"
@@ -623,6 +628,19 @@ def validate_typographic_scripts(line_number: int, line: str) -> list[Problem]:
                 "replace baseline exponent notation "
                 f"{describe_invalid_notation(invalid_exponents)} with Unicode superscript "
                 "characters, for example cm⁻¹, m², or 10⁵",
+            )
+        )
+    unspaced_percentage_values = find_invalid_notation(
+        rendered_line,
+        (UNSPACED_PERCENTAGE_VALUE,),
+    )
+    if unspaced_percentage_values:
+        problems.append(
+            Problem(
+                line_number,
+                "insert a space before % in numerical percentage notation "
+                f"{describe_invalid_notation(unspaced_percentage_values)}; "
+                "write 10 %, not 10%",
             )
         )
     invalid_prefixes = find_invalid_notation(
