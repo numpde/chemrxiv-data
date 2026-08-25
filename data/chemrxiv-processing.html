@@ -36,26 +36,37 @@
         <li>
           <h3>Establish the source set</h3>
           <p>
-            Inventory the main PDF and every acquired supporting-information file
-            for the same versioned DOI in <code>data/YYYY-MM-DD/</code>. Do not mix
-            versions or use existing HTML as a scientific source.
+            Inventory the main paper and every acquired supporting-information
+            source for the same versioned DOI in <code>data/YYYY-MM-DD/</code>. Do
+            not mix versions or use existing HTML as a scientific source.
           </p>
           <p>
-            This workflow currently supports PDFs that can be rendered reliably.
-            If any documentary main-paper or supporting-information source is
-            available only inside an archive file, is non-PDF, corrupt, unreadable,
-            or unrenderable, stop before writing the paper page or index row. The
-            local source set proves only what was acquired for this repository.
+            File format does not determine eligibility. Each format needs a
+            maintained inspection method that establishes exhaustive documentary
+            coverage and preserves relevant structure. If none exists, leave the
+            paper incomplete and stop before writing its page or index row; add
+            format support separately. If an eligible record lacks a stable source
+            locator accepted by the scope and validator, leave the paper incomplete
+            and stop before writing its page or index row until that representation
+            is supported. Do not discard a source or treat a partial conversion as
+            complete. The local source set proves only what was acquired for this
+            repository.
           </p>
         </li>
 
         <li>
-          <h3>Inspect every PDF</h3>
+          <h3>Inspect every source</h3>
           <p>
             Search text that exposes the scientific content and reading order
             reliably enough to locate analytical records, then inspect each
-            candidate in the rendered source. Inspect every page that fails that
-            test. A search hit is not proof of a complete record, and a failed
+            candidate in a directly inspected source representation. For PDFs,
+            verify candidates against rendered pages and inspect every page that
+            cannot be searched reliably. A maintained structured-document method
+            must inspect every documentary-bearing part, including tables, sheets,
+            annotations, hidden parts, and embedded documents. A maintained archive
+            method must recursively enumerate and inspect every documentary member.
+            Never execute macros, scripts, embedded programs, or other active
+            content. A search hit is not proof of a complete record, and a failed
             search is not proof that no record exists.
           </p>
         </li>
@@ -64,18 +75,19 @@
           <h3>Write the paper page</h3>
           <p>
             Apply the collection scope record by record and follow the validator’s
-            paper-page format. Name the HTML after the main PDF stem and place it in
-            <code>ext/YYYY-MM-DD/</code>. Read the authors, title, year, and versioned
-            DOI from the main paper; render the title in sentence case. In the paper
-            bibliography, link only the DOI.
+            paper-page format. Name the HTML after the main-paper source stem,
+            without its extension, and place it in <code>ext/YYYY-MM-DD/</code>.
+            Read the authors, title, year, and versioned DOI from the main paper;
+            render the title in sentence case. In the paper bibliography, link only
+            the DOI.
           </p>
           <p>
             Create a negative page only after complete source coverage finds no
-            eligible record. Complete coverage requires reviewing all extracted
-            text, not only search hits, and inspecting every rendered page. Use
-            acquisition evidence and the scope’s wording to describe the
-            supporting-information situation; local absence does not prove
-            nonexistence.
+            eligible record. Review all source content, not only search hits. For a
+            PDF, inspect every rendered page; for another format, inspect every
+            documentary-bearing part. Use acquisition evidence and
+            the scope’s wording to describe the supporting-information situation;
+            local absence does not prove nonexistence.
           </p>
         </li>
 
@@ -105,7 +117,7 @@
         <li>
           <h3>Validate the change</h3>
           <p>From the repository root, run:</p>
-          <pre><code>python3 scripts/validate_characterization_html.py ext/YYYY-MM-DD/MAIN-PDF-STEM.html ext/YYYY-MM-DD/index.html</code></pre>
+          <pre><code>python3 scripts/validate_characterization_html.py ext/YYYY-MM-DD/MAIN-SOURCE-STEM.html ext/YYYY-MM-DD/index.html</code></pre>
           <p>
             Fix the underlying defect behind every reported problem; do not bypass
             or game the validator by suppressing diagnostics, weakening required
