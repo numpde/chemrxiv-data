@@ -19,9 +19,12 @@ MARKER_BEFORE_NUMBER = re.compile(r"(?:•◊|•|◊)([ \t]*)(?=[+−-]?(?:\d|\
 SOURCE_PRESENTATION_TERM_IN_LABEL = re.compile(r"\b(?:table|fig(?:ure)?)s?\b", re.IGNORECASE)
 HTML_SCRIPT_ELEMENT = re.compile(r"<\s*/?\s*(?:sup|sub)\b", re.IGNORECASE)
 BASELINE_UNIT_EXPONENT = re.compile(
-    r"(?<![A-Za-z])"
+    r"(?<![A-Za-z\[])"
     r"(?:[kMGT]?Wm|[Åcmnµμ]?m|[kMµμ]?g|mol|[mµμ]?L|[mµμ]?s|K|Pa|Hz|V|A|W|J|M)"
-    r"(?:[−-][1-9]\d*|[23])(?!\d)"
+    r"[−-][1-9]\d*(?![A-Za-z0-9])"
+)
+BASELINE_POSITIVE_UNIT_EXPONENT = re.compile(
+    r"(?<![A-Za-z])(?:[Åcmnµμ]?m|[mµμ]?s)[23](?![A-Za-z0-9])"
 )
 CARET_EXPONENT = re.compile(r"\^[+−-]?\d+")
 BASELINE_POWER_OF_TEN_EXPONENT = re.compile(r"(?:×|·|\*)[ \t]*10[−-][1-9]\d*")
@@ -366,6 +369,7 @@ def validate_typographic_scripts(line_number: int, line: str) -> list[Problem]:
         )
     if (
         BASELINE_UNIT_EXPONENT.search(rendered_line)
+        or BASELINE_POSITIVE_UNIT_EXPONENT.search(rendered_line)
         or CARET_EXPONENT.search(rendered_line)
         or BASELINE_POWER_OF_TEN_EXPONENT.search(rendered_line)
     ):
