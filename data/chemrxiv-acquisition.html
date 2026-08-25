@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ChemRxiv acquisition method</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>ChemRxiv acquisition method</h1>
+      <p>
+        This procedure collects ChemRxiv papers with plausible experimental
+        characterization, together with their available Supporting Information.
+      </p>
+    </header>
+
+    <ol>
+      <li>
+        <p><strong>Build the daily manifest.</strong></p>
+        <p>
+          Query Crossref for every ChemRxiv <code>posted-content</code> record on
+          one exact date. Write a <code>manifest.json</code> that records the
+          query, retrieval time, source, and DOIs.
+        </p>
+      </li>
+
+      <li>
+        <p><strong>Screen the submissions.</strong></p>
+        <p>
+          Review titles and abstracts manually. Retain papers plausibly containing
+          experimental characterization, including NMR, Raman, IR, MS,
+          diffraction, electrochemistry, photophysics, synthesis characterization,
+          and similar data. Exclude purely computational, machine-learning,
+          software, conceptual, and perspective papers.
+        </p>
+      </li>
+
+      <li>
+        <p><strong>Download one submission at a time.</strong></p>
+        <p>
+          Use the existing local Chromium session to open the article page and
+          read its main PDF and Supporting Information links. Download one file
+          at a time and move validated files into
+          <code>data/YYYY-MM-DD/</code> before proceeding to the next submission.
+        </p>
+      </li>
+
+      <li>
+        <p><strong>Preserve the useful files.</strong></p>
+        <ul>
+          <li>Main PDFs.</li>
+          <li>Documentary Supporting Information in PDF, DOCX, or XLSX format.</li>
+          <li>Publisher-provided Supporting Information archives in ZIP format.</li>
+          <li>
+            Non-documentary data such as XYZ and CIF files, consolidated into a
+            <code>*-si-additional.zip</code> archive.
+          </li>
+          <li>
+            A <code>*-si.txt</code> note when no separate Supporting Information
+            is available or when the only available supplement is an omitted
+            video.
+          </li>
+        </ul>
+      </li>
+
+      <li>
+        <p><strong>Keep downloaded content inert.</strong></p>
+        <p>
+          Omit videos. Never execute downloaded code, macros, scripts, installers,
+          or other active content.
+        </p>
+      </li>
+
+      <li>
+        <p><strong>Validate the completed date.</strong></p>
+        <ul>
+          <li>Check PDF signatures, readability, and main-paper titles.</li>
+          <li>Check ZIP, DOCX, and XLSX container integrity.</li>
+          <li>Confirm that every retained DOI occurs in the manifest.</li>
+          <li>
+            Confirm that every main paper has either Supporting Information or
+            an explicit no-SI note.
+          </li>
+          <li>Confirm that no partial downloads or temporary files remain.</li>
+          <li>
+            Close the acquisition tabs, leaving only
+            <code>example.com</code> open in Chromium.
+          </li>
+        </ul>
+      </li>
+
+      <li>
+        <p><strong>Respect access limits.</strong></p>
+        <p>
+          Stop immediately if ChemRxiv returns a challenge or rate-limit block.
+          Never parallelize downloads or hammer retries.
+        </p>
+      </li>
+
+      <li>
+        <p><strong>Leave publication explicit.</strong></p>
+        <p>Do not commit the results unless a commit is explicitly requested.</p>
+      </li>
+    </ol>
+  </main>
+</body>
+</html>
