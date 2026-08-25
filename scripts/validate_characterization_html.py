@@ -42,6 +42,15 @@ BASELINE_NUCLEAR_ISOTOPE = re.compile(
 BASELINE_COUPLING_ORDER = re.compile(
     r"(?<![A-Za-z0-9])[1-9]J(?=[A-Za-z,]*[ \t]*(?:=|~))"
 )
+BASELINE_DEUTERATED_SOLVENT = re.compile(
+    r"(?<![A-Za-z0-9])(?:"
+    r"(?:acetone|DMSO|MeOD|THF|tetrahydrofuran|toluene|tol|MeOH|"
+    r"dichloromethane|tetrachloroethane|OMePh)-d[1-9]\d*"
+    r"|d[1-9]\d*-(?:DMSO|THF|toluene|MeOH)"
+    r"|CDCl3|C6D6|CD3CN|CD3OD|D2O|C2D2Cl4"
+    r")(?![A-Za-z0-9])",
+    re.IGNORECASE,
+)
 PAGE_ITEM = r"S?\d+(?:–S?\d+)?"
 
 
@@ -431,6 +440,19 @@ def validate_typographic_scripts(line_number: int, line: str) -> list[Problem]:
                 "replace baseline nuclear or coupling notation "
                 f"{describe_invalid_notation(invalid_prefixes)} with Unicode superscript "
                 "characters, for example ¹H NMR or ³J = 7.2 Hz",
+            )
+        )
+    invalid_subscripts = find_invalid_notation(
+        rendered_line,
+        (BASELINE_DEUTERATED_SOLVENT,),
+    )
+    if invalid_subscripts:
+        problems.append(
+            Problem(
+                line_number,
+                "replace baseline deuterated-solvent indices "
+                f"{describe_invalid_notation(invalid_subscripts)} with Unicode subscript "
+                "characters, for example CDCl₃, C₆D₆, or DMSO-d₆",
             )
         )
     return problems
