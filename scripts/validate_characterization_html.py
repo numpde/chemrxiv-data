@@ -112,14 +112,15 @@ class SemanticValidator:
         title = text_content(cite)
         if not title.strip():
             return
-        word_initials = [
+        title_word_initials = [
             next((character for character in word if character.isalpha()), None)
             for word in title.split()
         ]
-        letter_initials = [initial for initial in word_initials if initial is not None]
-        lowercase_words = sum(initial.islower() for initial in letter_initials)
-        if not letter_initials or lowercase_words * 2 <= len(letter_initials):
-            self.problem(cite, "paper title must use sentence case; most words must start lowercase")
+        cased_word_initials = [initial for initial in title_word_initials if initial is not None]
+        subsequent_word_initials = cased_word_initials[1:]
+        lowercase_words = sum(initial.islower() for initial in subsequent_word_initials)
+        if subsequent_word_initials and lowercase_words * 2 <= len(subsequent_word_initials):
+            self.problem(cite, "paper title must use sentence case; most words after the first must start lowercase")
 
     def validate(self, root: Node) -> list[Problem]:
         document_children = elements(root)
