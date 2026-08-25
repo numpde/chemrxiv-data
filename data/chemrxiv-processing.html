@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ChemRxiv PDF processing method</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>ChemRxiv PDF processing method</h1>
+      <p>
+        This procedure turns acquired ChemRxiv PDFs into source-faithful HTML
+        records of useful analytical characterization data. Process one paper at
+        a time. Infer nothing; omit a doubtful record instead of completing or
+        interpreting it.
+      </p>
+    </header>
+
+    <section>
+      <h2>Authority</h2>
+      <p>
+        <a href="../scope.html">The collection scope</a> owns admission and
+        representation policy. The PDFs own the scientific facts and provenance.
+        <code>scripts/validate_characterization_html.py</code> checks the subset of
+        paper-page structure and notation encoded in the validator; it does not
+        establish scientific accuracy or completeness.
+      </p>
+    </section>
+
+    <section>
+      <h2>Procedure</h2>
+      <ol>
+        <li>
+          <h3>Identify one source set</h3>
+          <p>
+            Select one main-paper PDF and every supporting-information PDF present
+            for the same versioned DOI in <code>data/YYYY-MM-DD/</code>. This
+            procedure processes the local source set; it does not discover or
+            download missing files. Do not mix versions or use a local HTML file
+            as a scientific source.
+          </p>
+          <p>
+            Stop if the main-paper PDF is absent, or if any PDF in the identified
+            local source set is corrupt, unreadable, or cannot be searched and
+            rendered. Also stop if acquired documentary supporting information is
+            present only in another format, such as DOCX or XLSX: that source
+            requires a separately supported inspection method. An unread source
+            cannot support a “not found” statement or a completed paper. Absence
+            of a separate supporting-information PDF does not block processing
+            when the acquisition note or other acquisition evidence establishes
+            that situation.
+          </p>
+        </li>
+
+        <li>
+          <h3>Establish the paper metadata</h3>
+          <p>
+            Read the author credit, title, year, and versioned DOI from the main
+            paper’s bibliographic record. Use them in the HTML bibliography. Put
+            the title in sentence case. In the bibliography, hyperlink only the
+            DOI; do not link to source files.
+          </p>
+        </li>
+
+        <li>
+          <h3>Search every available PDF</h3>
+          <p>
+            Search the main paper and supporting information for analytical
+            methods, characterization sections, compound or sample records, and
+            tabulated analytical results. Use extracted text to locate candidates,
+            then read their surrounding source text and inspect the rendered PDF
+            wherever layout, symbols, subscripts, superscripts, tables, or reading
+            order could be ambiguous. A search hit alone is not evidence that a
+            record is complete or in scope. Inspect pages that have no usable text
+            layer rather than treating a failed text search as a negative result.
+          </p>
+        </li>
+
+        <li>
+          <h3>Apply the scope record by record</h3>
+          <p>
+            Apply the Admission, Retain, and Omit rules in the collection scope to
+            each candidate. Do not infer a missing fact, transcribe a simulation,
+            or retain surrounding prose merely because it is near an admitted
+            result. When scientific value or scope is unclear, omit the candidate.
+          </p>
+        </li>
+
+        <li>
+          <h3>Write one paper page</h3>
+          <p>
+            Write an HTML file in <code>ext/YYYY-MM-DD/</code> with the same stem
+            as the main PDF: for example, <code>15007631-v1.pdf</code> becomes
+            <code>15007631-v1.html</code>. Use one <code>&lt;article&gt;</code> and one
+            <code>&lt;table&gt;</code> as prescribed by the Representation section of
+            the collection scope. When a source heading combines a name and an
+            identifier, put the name or source description in the caption and the
+            identifier in an Identifier row; do not add a generic label such as
+            Product.
+          </p>
+          <p>
+            Follow the scope’s rules for labels, exact Main/SI duplicates,
+            differing results, page locators, and typographic normalization. Do
+            not silently correct, reconcile, or merge source anomalies.
+          </p>
+        </li>
+
+        <li>
+          <h3>Record an empty result precisely</h3>
+          <p>
+            If no record passes the scope, still create the paper page. In its
+            header, state what analytical data were not found and where. Use, as
+            applicable, “Analytical characterization data from the paper’s own
+            experiments were not found in the main paper” or “Analytical
+            characterization data from the paper’s own experiments were not found
+            in the main paper or supporting information.” State the verified
+            supporting-information situation separately. Read the acquisition note
+            or other acquisition evidence before using record-level wording such as
+            “Supporting information is appended to the main paper” or “A separate
+            supporting information PDF was not found among the files available
+            from the ChemRxiv record.” If the main paper refers to absent
+            supporting information, say so. Local absence alone does not establish
+            what was available from the ChemRxiv record, and it does not establish
+            that supporting information does not exist.
+          </p>
+        </li>
+
+        <li>
+          <h3>Audit against the PDFs</h3>
+          <p>
+            Make a second source-to-HTML pass without relying on the extraction
+            notes. Compare every caption, identifier, label, value, symbol,
+            qualifier, and page citation with the rendered source. For every row,
+            verify that its caption identifies the owner and that its label,
+            value, conditions, and footer are understandable without an omitted
+            figure or supplied scientific meaning. Then have another source-aware
+            reviewer challenge admission, transcription, ownership, and provenance,
+            and revise substantiated defects.
+          </p>
+        </li>
+
+        <li>
+          <h3>Validate and revise</h3>
+          <pre><code>python3 scripts/validate_characterization_html.py ext/YYYY-MM-DD/MAIN-PDF-STEM.html</code></pre>
+          <p>
+            Fix every reported structural, formatting, and notation problem, then
+            run the validator again. Passing validation does not replace the
+            source-to-HTML audit.
+          </p>
+        </li>
+
+        <li>
+          <h3>Update the dated index</h3>
+          <p>
+            Add the paper title and link to <code>ext/YYYY-MM-DD/index.html</code>.
+            If the dated index does not exist, create it from the established dated
+            index structure and include every paper page already in that directory;
+            do not create a current-paper-only index beside earlier paper pages.
+            Preserve the dated index’s existing columns. Within those columns,
+            mark only analysis types represented by retained rows on the paper
+            page. List NMR nuclei compactly; use a tick for another represented
+            analysis type and an em dash when none is represented. A retained
+            method without an existing column is not shown in the index; do not
+            add a collection-wide column while processing one paper.
+          </p>
+          <p>
+            Manually compare the current index row’s title, link, and analysis
+            cells with the current paper page. When creating an absent index,
+            compare every populated row with its corresponding paper page. Then
+            run:
+          </p>
+          <pre><code>python3 scripts/validate_characterization_html.py ext/YYYY-MM-DD/MAIN-PDF-STEM.html ext/YYYY-MM-DD/index.html</code></pre>
+          <p>
+            For the index, this command checks shared notation only. It does not
+            check the table structure, link target, title, analysis cells, or
+            agreement with the paper page.
+          </p>
+        </li>
+
+        <li>
+          <h3>Inspect the scoped change</h3>
+          <p>
+            Review repository status and the diff for the paper page and dated
+            index. Remove extractor artefacts and keep unrelated work out of the
+            paper’s change. Do not commit or publish unless explicitly requested.
+          </p>
+        </li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Completion</h2>
+      <ul>
+        <li>Source-set coverage is established</li>
+        <li>The source-to-HTML audit and source-aware review are complete</li>
+        <li>The index was compared manually with the paper page</li>
+        <li>The paper page and index pass their applicable validator checks</li>
+        <li>The scoped diff contains only the intended paper and index changes</li>
+      </ul>
+      <p>If any proof is absent, the paper is incomplete rather than an empty result.</p>
+    </section>
+  </main>
+</body>
+</html>
