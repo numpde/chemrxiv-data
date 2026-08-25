@@ -266,6 +266,8 @@ class SemanticValidator:
             self.expect_attrs(value, [])
             self.expect_plain_text(label)
             self.expect_plain_text(value)
+            if text_content(label).strip() == "Product":
+                self.problem(label, "use Identifier for a compound identifier, not Product")
             self.expect_no_terminal_punctuation(label, "measurement label")
             self.expect_no_terminal_punctuation(value, "measurement text")
 
