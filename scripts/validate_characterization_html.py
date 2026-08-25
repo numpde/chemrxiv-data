@@ -37,8 +37,12 @@ CARET_EXPONENT = re.compile(r"\^[+−-]?\d+")
 BASELINE_POWER_OF_TEN_EXPONENT = re.compile(
     r"(?:\b10−[1-9]\d*|(?:×|·|\*)[ \t]*10-[1-9]\d*)"
 )
-INCOMPLETE_SUPERSCRIPT_EXPONENT = re.compile(r"(?:[−-][⁰¹²³⁴⁵⁶⁷⁸⁹]+|⁻\d+)")
 NUCLEAR_ISOTOPE = r"(?:1H|6Li|7Li|11B|13C|15N|17O|19F|27Al|31P)"
+SUPERSCRIPT_NUCLEAR_ISOTOPE = r"(?:¹H|⁶Li|⁷Li|¹¹B|¹³C|¹⁵N|¹⁷O|¹⁹F|²⁷Al|³¹P)"
+# A nomenclature hyphen may precede a superscript isotope, as in ``-¹⁵N``.
+INCOMPLETE_SUPERSCRIPT_EXPONENT = re.compile(
+    rf"(?:[−-](?!{SUPERSCRIPT_NUCLEAR_ISOTOPE})[⁰¹²³⁴⁵⁶⁷⁸⁹]+|⁻\d+)"
+)
 BASELINE_NUCLEAR_ISOTOPE = re.compile(
     r"(?<![A-Za-z0-9])(?:"
     rf"{NUCLEAR_ISOTOPE}"
@@ -59,7 +63,7 @@ BASELINE_DEUTERATED_SOLVENT = re.compile(
     re.IGNORECASE,
 )
 CALCULATED_FORMULA = re.compile(
-    r"\b(?:calcd\.?|calculated)\s+(?:for\s+)?(?:formula\s+)?"
+    r"\b(?:calcd\.?|calculated)\s+(?:(?:for|für)\s+)?(?:formula\s+)?"
     r"(?P<formula>[⁰¹²³⁴⁵⁶⁷⁸⁹]*[A-Z][A-Za-z0-9⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉()+−-]*)",
     re.IGNORECASE,
 )
