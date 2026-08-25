@@ -62,10 +62,20 @@ BASELINE_DEUTERATED_SOLVENT = re.compile(
     r")(?![A-Za-z0-9])",
     re.IGNORECASE,
 )
+# Calculation prose may contain punctuation or connector words before the formula.
+# The bounded gap and two-element requirement avoid later values such as F(000), Ca2+,
+# or Olex2 while admitting bracketed and dot-separated molecular formulas.
+FORMULA_TOKEN_CHARACTERS = r"A-Za-z0-9⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉()+−·‧.\-"
+FORMULA_TOKEN_NON_UPPER = r"a-z0-9⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉()+−·‧.\-"
 CALCULATED_FORMULA = re.compile(
-    r"\b(?:calcd\.?|calculated)\s+(?:(?:for|für)\s+)?(?:formula\s+)?"
-    r"(?P<formula>[⁰¹²³⁴⁵⁶⁷⁸⁹]*[A-Z][A-Za-z0-9⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉()+−-]*)",
-    re.IGNORECASE,
+    rf"\b(?i:calcd\.?|calculated)\b[^<\n]{{0,24}}?"
+    rf"(?P<formula>"
+    rf"(?=[{FORMULA_TOKEN_CHARACTERS}]*(?:[0-9]|[+−-](?![{FORMULA_TOKEN_CHARACTERS}])))"
+    rf"(?=(?:[{FORMULA_TOKEN_NON_UPPER}]*[A-Z]){{2}})"
+    rf"[⁰¹²³⁴⁵⁶⁷⁸⁹]*[A-Z][{FORMULA_TOKEN_CHARACTERS}]*)"
+)
+FORMULA_STOICHIOMETRIC_COEFFICIENT = re.compile(
+    r"(?<=[·‧])\d+(?:\.\d+)?(?=[⁰¹²³⁴⁵⁶⁷⁸⁹]*[A-Z])"
 )
 # These patterns recognize only formula contexts established by nearby calculated-formula
 # wording or a radical-ion suffix; they do not define a molecular-formula grammar.
@@ -77,7 +87,7 @@ PARENTHESIZED_RADICAL_FORMULA = re.compile(
     r"))"
 )
 BRACKETED_ION_WITH_BASELINE_CHARGE = re.compile(
-    r"\[M[^\]\n]{0,64}\](?:"
+    r"\[[A-Z][^\]\n]{0,127}\](?:"
     r"(?:[1-9]\d*)?[+−-]"
     r"|[1-9]\d*[⁺⁻]"
     r"|[⁰¹²³⁴⁵⁶⁷⁸⁹]+[+−-]"
@@ -434,7 +444,7 @@ class SemanticValidator:
             if not FORMULA_FIELD_LABEL.search(label_field) or index >= len(value_fields):
                 continue
             formula = value_fields[index]
-            if not re.search(r"[0-9]", formula) and not formula.endswith(("+", "−", "-")):
+            if not has_baseline_formula_scripts(formula):
                 continue
             notation = bounded_notation(formula)
             if notation not in invalid_formulas:
@@ -563,6 +573,13 @@ def describe_invalid_notation(notations: list[str]) -> str:
     return shown + (f" and {omitted} more" if omitted > 0 else "")
 
 
+def has_baseline_formula_scripts(formula: str) -> bool:
+    """Ignore baseline stoichiometric coefficients while checking formula scripts."""
+
+    indices_and_charge = FORMULA_STOICHIOMETRIC_COEFFICIENT.sub("", formula)
+    return bool(re.search(r"[0-9]", indices_and_charge)) or formula.endswith(("+", "−", "-"))
+
+
 def validate_typographic_scripts(line_number: int, line: str) -> list[Problem]:
     """Check context-qualified notation on one decoded physical source line.
 
@@ -628,9 +645,7 @@ def validate_typographic_scripts(line_number: int, line: str) -> list[Problem]:
     invalid_formulas: list[str] = []
     for match in CALCULATED_FORMULA.finditer(rendered_line):
         formula = match.group("formula")
-        has_baseline_index = bool(re.search(r"[0-9]", formula))
-        has_baseline_charge = formula.endswith(("+", "−", "-"))
-        if not has_baseline_index and not has_baseline_charge:
+        if not has_baseline_formula_scripts(formula):
             continue
         notation = bounded_notation(formula)
         if notation not in invalid_formulas:
