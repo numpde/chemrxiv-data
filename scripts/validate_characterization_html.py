@@ -17,6 +17,14 @@ INLINE_TAGS = {"title", "p", "caption", "th", "td", "footer"}
 VOID_TAGS = {"link", "meta"}
 MARKER_BEFORE_NUMBER = re.compile(r"(?:•◊|•|◊)([ \t]*)(?=[+−-]?(?:\d|\.\d))")
 SOURCE_PRESENTATION_TERM_IN_LABEL = re.compile(r"\b(?:table|fig(?:ure)?)s?\b", re.IGNORECASE)
+HTML_SCRIPT_ELEMENT = re.compile(r"<\s*/?\s*(?:sup|sub)\b", re.IGNORECASE)
+BASELINE_UNIT_EXPONENT = re.compile(
+    r"(?<![A-Za-z])"
+    r"(?:[kMGT]?Wm|[Åcmnµμ]?m|[kMµμ]?g|mol|[mµμ]?L|[mµμ]?s|K|Pa|Hz|V|A|W|J|M)"
+    r"(?:[−-][1-9]\d*|[23])(?!\d)"
+)
+CARET_EXPONENT = re.compile(r"\^[+−-]?\d+")
+BASELINE_POWER_OF_TEN_EXPONENT = re.compile(r"(?:×|·|\*)[ \t]*10[−-][1-9]\d*")
 PAGE_ITEM = r"S?\d+(?:–S?\d+)?"
 
 
@@ -349,6 +357,27 @@ def validate_markers(line_number: int, line: str) -> list[Problem]:
     return problems
 
 
+def validate_typographic_scripts(line_number: int, line: str) -> list[Problem]:
+    problems: list[Problem] = []
+    rendered_line = unescape(line)
+    if HTML_SCRIPT_ELEMENT.search(rendered_line):
+        problems.append(
+            Problem(line_number, "use Unicode superscript or subscript characters, not HTML elements")
+        )
+    if (
+        BASELINE_UNIT_EXPONENT.search(rendered_line)
+        or CARET_EXPONENT.search(rendered_line)
+        or BASELINE_POWER_OF_TEN_EXPONENT.search(rendered_line)
+    ):
+        problems.append(
+            Problem(
+                line_number,
+                "use Unicode superscript characters for exponents, for example cm⁻¹, m², or 10⁵",
+            )
+        )
+    return problems
+
+
 def opening_tag(node: Node) -> str:
     attributes = "".join(
         f' {name}="{escape(value, quote=True)}"'
@@ -430,6 +459,7 @@ def validate_text(source: str) -> list[Problem]:
 
     for line_number, line in enumerate(source.splitlines(), 1):
         problems.extend(validate_markers(line_number, line))
+        problems.extend(validate_typographic_scripts(line_number, line))
     return sorted(problems, key=lambda problem: (problem.line, problem.message))
 
 
