@@ -57,12 +57,16 @@ CALCULATED_FORMULA = re.compile(
     re.IGNORECASE,
 )
 BRACKETED_ION_WITH_BASELINE_CHARGE = re.compile(
-    r"\[M[^\]\n]{0,64}\](?:"
+    r"\[M[^\]\n]{0,64}\][•˙]?(?:"
     r"(?:[1-9]\d*)?[+−-]"
     r"|[1-9]\d*[⁺⁻]"
     r"|[⁰¹²³⁴⁵⁶⁷⁸⁹]+[+−-]"
     r")(?![A-Za-z0-9])"
 )
+PARENTHESIZED_RADICAL_ION_WITH_BASELINE_CHARGE = re.compile(
+    r"\([A-Z][A-Za-z0-9⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉()+−-]{1,64}\)[•˙][+−-]"
+)
+INVERTED_BRACKETED_RADICAL_ION = re.compile(r"\[M(?:[-+−⁺⁻][•˙])\]")
 FORMULA_FIELD_LABEL = re.compile(r"(?:^|,\s)(?:empirical\s+)?formula$", re.IGNORECASE)
 PAGE_ITEM = r"S?\d+(?:–S?\d+)?"
 
@@ -513,15 +517,29 @@ def validate_typographic_scripts(line_number: int, line: str) -> list[Problem]:
         )
     invalid_ion_charges = find_invalid_notation(
         rendered_line,
-        (BRACKETED_ION_WITH_BASELINE_CHARGE,),
+        (BRACKETED_ION_WITH_BASELINE_CHARGE, PARENTHESIZED_RADICAL_ION_WITH_BASELINE_CHARGE),
     )
     if invalid_ion_charges:
         problems.append(
             Problem(
                 line_number,
-                "replace baseline bracketed-ion charge "
+                "replace baseline ion charge "
                 f"{describe_invalid_notation(invalid_ion_charges)} with Unicode superscript "
-                "characters, for example [M+H]⁺ or [M−15NTf₂⁻]¹⁵⁺",
+                "characters, for example [M+H]⁺, [M]•⁺ or [M]˙⁺, and "
+                "[M−15NTf₂⁻]¹⁵⁺",
+            )
+        )
+    inverted_radical_ions = find_invalid_notation(
+        rendered_line,
+        (INVERTED_BRACKETED_RADICAL_ION,),
+    )
+    if inverted_radical_ions:
+        problems.append(
+            Problem(
+                line_number,
+                "write bracketed radical-ion notation "
+                f"{describe_invalid_notation(inverted_radical_ions)} with the radical and "
+                "superscript charge after the brackets, for example [M]˙⁺",
             )
         )
     return problems
