@@ -20,11 +20,11 @@ SOURCE_PRESENTATION_TERM_IN_LABEL = re.compile(r"\b(?:table|fig(?:ure)?)s?\b", r
 HTML_SCRIPT_ELEMENT = re.compile(r"<\s*/?\s*(?:sup|sub)\b", re.IGNORECASE)
 BASELINE_UNIT_EXPONENT = re.compile(
     r"(?<![A-Za-z\[])"
-    r"(?:[kMGT]?Wm|[Åcmnµμ]?m|[kMµμ]?g|mol|[mµμ]?L|[mµμ]?s|K|Pa|Hz|V|A|W|J|M)"
+    r"(?:[kMGT]?Wm|[cmnµμ]?m|[kMµμ]?g|gcat|mol|[mµμ]?L|[mµμ]?s|K|Pa|Hz|V|A|W|J|M|e?Å)"
     r"[−-][1-9]\d*(?![A-Za-z0-9])"
 )
 BASELINE_POSITIVE_UNIT_EXPONENT = re.compile(
-    r"(?<![A-Za-z])(?:[Åcmnµμ]?m|[mµμ]?s)[23](?![A-Za-z0-9])"
+    r"(?<![A-Za-z])(?:[cmnµμ]?m|[mµμ]?s|Å)[23](?![A-Za-z0-9])"
 )
 CARET_EXPONENT = re.compile(r"\^[+−-]?\d+")
 BASELINE_POWER_OF_TEN_EXPONENT = re.compile(
