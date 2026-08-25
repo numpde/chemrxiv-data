@@ -51,6 +51,18 @@ BASELINE_DEUTERATED_SOLVENT = re.compile(
     r")(?![A-Za-z0-9])",
     re.IGNORECASE,
 )
+CALCULATED_FORMULA = re.compile(
+    r"\b(?:calcd\.?|calculated)\s+(?:for\s+)?(?:formula\s+)?"
+    r"(?P<formula>[⁰¹²³⁴⁵⁶⁷⁸⁹]*[A-Z][A-Za-z0-9⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉()+−-]*)",
+    re.IGNORECASE,
+)
+BRACKETED_ION_WITH_BASELINE_CHARGE = re.compile(
+    r"\[M[^\]\n]{0,64}\](?:"
+    r"(?:[1-9]\d*)?[+−-]"
+    r"|[1-9]\d*[⁺⁻]"
+    r"|[⁰¹²³⁴⁵⁶⁷⁸⁹]+[+−-]"
+    r")(?![A-Za-z0-9])"
+)
 PAGE_ITEM = r"S?\d+(?:–S?\d+)?"
 
 
@@ -383,15 +395,17 @@ def validate_markers(line_number: int, line: str) -> list[Problem]:
     return problems
 
 
+def bounded_notation(notation: str) -> str:
+    return notation[:29] + "..." if len(notation) > 32 else notation
+
+
 def find_invalid_notation(text: str, patterns: tuple[re.Pattern[str], ...]) -> list[str]:
     notations: list[str] = []
     for match in sorted(
         (match for pattern in patterns for match in pattern.finditer(text)),
         key=lambda match: match.start(),
     ):
-        notation = match.group()
-        if len(notation) > 32:
-            notation = notation[:29] + "..."
+        notation = bounded_notation(match.group())
         if notation not in notations:
             notations.append(notation)
     return notations
@@ -453,6 +467,38 @@ def validate_typographic_scripts(line_number: int, line: str) -> list[Problem]:
                 "replace baseline deuterated-solvent indices "
                 f"{describe_invalid_notation(invalid_subscripts)} with Unicode subscript "
                 "characters, for example CDCl₃, C₆D₆, or DMSO-d₆",
+            )
+        )
+    invalid_formulas: list[str] = []
+    for match in CALCULATED_FORMULA.finditer(rendered_line):
+        formula = match.group("formula")
+        has_baseline_index = bool(re.search(r"[0-9]", formula))
+        has_baseline_charge = formula.endswith(("+", "−", "-"))
+        if not has_baseline_index and not has_baseline_charge:
+            continue
+        notation = bounded_notation(formula)
+        if notation not in invalid_formulas:
+            invalid_formulas.append(notation)
+    if invalid_formulas:
+        problems.append(
+            Problem(
+                line_number,
+                "replace baseline indices or charge signs in calculated formula "
+                f"{describe_invalid_notation(invalid_formulas)} with Unicode subscript or "
+                "superscript characters, for example C₈H₁₃NO₂Na or C₁₉H₂₆N₆O₅⁺",
+            )
+        )
+    invalid_ion_charges = find_invalid_notation(
+        rendered_line,
+        (BRACKETED_ION_WITH_BASELINE_CHARGE,),
+    )
+    if invalid_ion_charges:
+        problems.append(
+            Problem(
+                line_number,
+                "replace baseline bracketed-ion charge "
+                f"{describe_invalid_notation(invalid_ion_charges)} with Unicode superscript "
+                "characters, for example [M+H]⁺ or [M−15NTf₂⁻]¹⁵⁺",
             )
         )
     return problems
