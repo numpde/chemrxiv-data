@@ -31,10 +31,17 @@ BASELINE_POWER_OF_TEN_EXPONENT = re.compile(
     r"(?:\b10−[1-9]\d*|(?:×|·|\*)[ \t]*10-[1-9]\d*)"
 )
 INCOMPLETE_SUPERSCRIPT_EXPONENT = re.compile(r"(?:[−-][⁰¹²³⁴⁵⁶⁷⁸⁹]+|⁻\d+)")
-BASELINE_NMR_NUCLEUS = re.compile(
-    r"(?<![A-Za-z0-9])[1-9]\d{0,2}(?:H|C|N|F|P|Li|B)(?=[ \t]+(?:NMR|PFG)\b)"
+NUCLEAR_ISOTOPE = r"(?:1H|6Li|7Li|11B|13C|15N|17O|19F|27Al|31P)"
+BASELINE_NUCLEAR_ISOTOPE = re.compile(
+    r"(?<![A-Za-z0-9])(?:"
+    rf"{NUCLEAR_ISOTOPE}"
+    r"(?=(?:[^<\n]{0,48}\b(?:NMR|PFG|HSQC|HMBC|HETCOR)\b|-labelled\b))"
+    r"|7Li(?=[ \t]+longitudinal relaxation\b)"
+    r")|(?<=[–-])15N(?![A-Za-z0-9])"
 )
-BASELINE_COUPLING_ORDER = re.compile(r"(?<![A-Za-z0-9])[1-9]J(?=[ \t]*=)")
+BASELINE_COUPLING_ORDER = re.compile(
+    r"(?<![A-Za-z0-9])[1-9]J(?=[A-Za-z,]*[ \t]*(?:=|~))"
+)
 PAGE_ITEM = r"S?\d+(?:–S?\d+)?"
 
 
@@ -415,7 +422,7 @@ def validate_typographic_scripts(line_number: int, line: str) -> list[Problem]:
         )
     invalid_prefixes = find_invalid_notation(
         rendered_line,
-        (BASELINE_NMR_NUCLEUS, BASELINE_COUPLING_ORDER),
+        (BASELINE_NUCLEAR_ISOTOPE, BASELINE_COUPLING_ORDER),
     )
     if invalid_prefixes:
         problems.append(
