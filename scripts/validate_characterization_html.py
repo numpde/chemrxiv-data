@@ -27,7 +27,10 @@ BASELINE_POSITIVE_UNIT_EXPONENT = re.compile(
     r"(?<![A-Za-z])(?:[Åcmnµμ]?m|[mµμ]?s)[23](?![A-Za-z0-9])"
 )
 CARET_EXPONENT = re.compile(r"\^[+−-]?\d+")
-BASELINE_POWER_OF_TEN_EXPONENT = re.compile(r"(?:×|·|\*)[ \t]*10[−-][1-9]\d*")
+BASELINE_POWER_OF_TEN_EXPONENT = re.compile(
+    r"(?:\b10−[1-9]\d*|(?:×|·|\*)[ \t]*10-[1-9]\d*)"
+)
+INCOMPLETE_SUPERSCRIPT_EXPONENT = re.compile(r"(?:[−-][⁰¹²³⁴⁵⁶⁷⁸⁹]+|⁻\d+)")
 PAGE_ITEM = r"S?\d+(?:–S?\d+)?"
 
 
@@ -367,16 +370,32 @@ def validate_typographic_scripts(line_number: int, line: str) -> list[Problem]:
         problems.append(
             Problem(line_number, "use Unicode superscript or subscript characters, not HTML elements")
         )
-    if (
-        BASELINE_UNIT_EXPONENT.search(rendered_line)
-        or BASELINE_POSITIVE_UNIT_EXPONENT.search(rendered_line)
-        or CARET_EXPONENT.search(rendered_line)
-        or BASELINE_POWER_OF_TEN_EXPONENT.search(rendered_line)
+    invalid_exponents: list[str] = []
+    exponent_patterns = (
+        BASELINE_UNIT_EXPONENT,
+        BASELINE_POSITIVE_UNIT_EXPONENT,
+        CARET_EXPONENT,
+        BASELINE_POWER_OF_TEN_EXPONENT,
+        INCOMPLETE_SUPERSCRIPT_EXPONENT,
+    )
+    for match in sorted(
+        (match for pattern in exponent_patterns for match in pattern.finditer(rendered_line)),
+        key=lambda match: match.start(),
     ):
+        notation = match.group()
+        if len(notation) > 32:
+            notation = notation[:29] + "..."
+        if notation not in invalid_exponents:
+            invalid_exponents.append(notation)
+    if invalid_exponents:
+        shown = ", ".join(repr(notation) for notation in invalid_exponents[:3])
+        omitted = len(invalid_exponents) - 3
+        suffix = f" and {omitted} more" if omitted > 0 else ""
         problems.append(
             Problem(
                 line_number,
-                "use Unicode superscript characters for exponents, for example cm⁻¹, m², or 10⁵",
+                f"replace baseline exponent notation {shown}{suffix} with Unicode superscript "
+                "characters, for example cm⁻¹, m², or 10⁵",
             )
         )
     return problems
