@@ -63,6 +63,7 @@ BRACKETED_ION_WITH_BASELINE_CHARGE = re.compile(
     r"|[⁰¹²³⁴⁵⁶⁷⁸⁹]+[+−-]"
     r")(?![A-Za-z0-9])"
 )
+FORMULA_FIELD_LABEL = re.compile(r"(?:^|,\s)(?:empirical\s+)?formula$", re.IGNORECASE)
 PAGE_ITEM = r"S?\d+(?:–S?\d+)?"
 
 
@@ -324,8 +325,30 @@ class SemanticValidator:
                 self.problem(label, "use Identifier for a compound identifier, not Product")
             if SOURCE_PRESENTATION_TERM_IN_LABEL.search(label_text):
                 self.problem(label, "measurement labels must describe the measurement, not a source table or figure")
+            self.validate_formula_fields(label_text, value)
             self.expect_no_terminal_punctuation(label, "measurement label")
             self.expect_no_terminal_punctuation(value, "measurement text")
+
+    def validate_formula_fields(self, label_text: str, value: Node) -> None:
+        label_fields = [field.strip() for field in label_text.split(";")]
+        value_fields = [field.strip() for field in text_content(value).split(";")]
+        invalid_formulas = []
+        for index, label_field in enumerate(label_fields):
+            if not FORMULA_FIELD_LABEL.search(label_field) or index >= len(value_fields):
+                continue
+            formula = value_fields[index]
+            if not re.search(r"[0-9]", formula) and not formula.endswith(("+", "−", "-")):
+                continue
+            notation = bounded_notation(formula)
+            if notation not in invalid_formulas:
+                invalid_formulas.append(notation)
+        if invalid_formulas:
+            self.problem(
+                value,
+                "replace baseline indices or charge signs in formula value "
+                f"{describe_invalid_notation(invalid_formulas)} with Unicode subscript or "
+                "superscript characters, for example C₈H₁₃NO₂Na or C₁₉H₂₆N₆O₅⁺",
+            )
 
     def expect_no_terminal_punctuation(self, node: Node, field_name: str) -> None:
         if text_content(node).rstrip().endswith((".", ";", ",", ":")):
