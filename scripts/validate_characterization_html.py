@@ -109,6 +109,13 @@ BRACKETED_ION_WITH_BASELINE_CHARGE = re.compile(
     r"|[⁰¹²³⁴⁵⁶⁷⁸⁹]+[+−-]"
     r")(?![A-Za-z0-9˙•∙⋅⸳··․])"
 )
+# The brackets and external charge identify the complete detected adduct or loss.
+PARENTHESIZED_MASS_SPECTROMETRY_ION = re.compile(
+    r"(?:\[[ \t]*)?\(M[ \t]*[+−-][^()\]\n]{0,63}?(?:"
+    r"(?:[⁰¹²³⁴⁵⁶⁷⁸⁹]*[⁺⁻]|(?:[1-9]\d*)?[+−-])\)(?:[ \t]*\])?"
+    r"|\)(?:[ \t]*\])?(?:[⁰¹²³⁴⁵⁶⁷⁸⁹]*[⁺⁻]|(?:[1-9]\d*)?[+−-])"
+    r")"
+)
 
 # Mass-spectrometry radical ions use a superscript charge followed by U+02D9 DOT ABOVE.
 # The targeted rejection grammar enumerates plausible alternatives without matching that authority.
@@ -722,6 +729,22 @@ def validate_typographic_scripts(line_number: int, line: str) -> list[Problem]:
                 "replace baseline bracketed-ion charge "
                 f"{describe_invalid_notation(invalid_ion_charges)} with Unicode superscript "
                 "characters, for example [M+H]⁺ or [M−15NTf₂⁻]¹⁵⁺",
+            )
+        )
+    parenthesized_ions: list[str] = []
+    if "(M" in rendered_line:
+        parenthesized_ions = find_invalid_notation(
+            decoded_text_content(line),
+            (PARENTHESIZED_MASS_SPECTROMETRY_ION,),
+        )
+    if parenthesized_ions:
+        problems.append(
+            Problem(
+                line_number,
+                "replace parenthesized mass-spectrometry ion "
+                f"{describe_invalid_notation(parenthesized_ions)}; enclose the complete adduct "
+                "or loss in square brackets and put its superscript charge after the closing "
+                "bracket, for example [M+H]⁺ or [M+NH₄]⁺",
             )
         )
     noncanonical_radical_ions = find_invalid_notation(
