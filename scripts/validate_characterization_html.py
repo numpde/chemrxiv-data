@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Validate collection-owned HTML structure without interpreting scientific text."""
+"""Validate characterization pages against the collection's HTML and notation policy.
+
+The validator enforces the required schema, canonical serialization, and
+typographic conventions without assessing scientific correctness.
+"""
 
 from __future__ import annotations
 
@@ -18,6 +22,9 @@ VOID_TAGS = {"link", "meta"}
 MARKER_BEFORE_NUMBER = re.compile(r"(?:•◊|•|◊)([ \t]*)(?=[+−-]?(?:\d|\.\d))")
 SOURCE_PRESENTATION_TERM_IN_LABEL = re.compile(r"\b(?:table|fig(?:ure)?)s?\b", re.IGNORECASE)
 HTML_SCRIPT_ELEMENT = re.compile(r"<\s*/?\s*(?:sup|sub)\b", re.IGNORECASE)
+
+# Scientific text also contains valid baseline digits in compound and sample identifiers.
+# Restrict these patterns to established notation contexts so those digits are not rejected.
 BASELINE_UNIT_EXPONENT = re.compile(
     r"(?<![A-Za-z\[])"
     r"(?:[kMGT]?Wm|[cmnµμ]?m|[kMµμ]?g|gcat|mol|[mµμ]?L|[mµμ]?s|K|Pa|Hz|V|A|W|J|M|e?Å)"
@@ -56,6 +63,8 @@ CALCULATED_FORMULA = re.compile(
     r"(?P<formula>[⁰¹²³⁴⁵⁶⁷⁸⁹]*[A-Z][A-Za-z0-9⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉()+−-]*)",
     re.IGNORECASE,
 )
+# These patterns recognize only formula contexts established by nearby calculated-formula
+# wording or a radical-ion suffix; they do not define a molecular-formula grammar.
 PARENTHESIZED_RADICAL_FORMULA = re.compile(
     r"\((?P<formula>[A-Z][A-Za-z0-9⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉()+−-]{1,64})\)"
     r"(?=(?:"
@@ -70,6 +79,9 @@ BRACKETED_ION_WITH_BASELINE_CHARGE = re.compile(
     r"|[⁰¹²³⁴⁵⁶⁷⁸⁹]+[+−-]"
     r")(?![A-Za-z0-9˙•∙⋅⸳··․])"
 )
+
+# Mass-spectrometry radical ions use a superscript charge followed by U+02D9 DOT ABOVE.
+# The targeted rejection grammar enumerates plausible alternatives without matching that authority.
 NONCANONICAL_RADICAL_ION = re.compile(
     r"(?:"
     r"\[M[^\]\n]{0,64}\]"
@@ -84,6 +96,7 @@ INVERTED_BRACKETED_RADICAL_ION = re.compile(
     r"\[M(?:[-+−⁺⁻][˙•∙⋅⸳··․]|[˙•∙⋅⸳··․][-+−⁺⁻])\]"
 )
 FORMULA_FIELD_LABEL = re.compile(r"(?:^|,\s)(?:empirical\s+)?formula$", re.IGNORECASE)
+# A hyphen is part of a section-qualified page label; an en dash joins range endpoints.
 PAGE_ITEM = r"(?:S\d+(?:-\d+)?|\d+)(?:–(?:S\d+(?:-\d+)?|\d+))?"
 
 
@@ -95,6 +108,8 @@ class Problem:
 
 @dataclass
 class Node:
+    """A source-located element with ordered decoded mixed content for validation."""
+
     tag: str
     attrs: list[tuple[str, str | None]]
     line: int
@@ -102,6 +117,15 @@ class Node:
 
 
 class DocumentParser(HTMLParser):
+    """Build a minimal source-located tree while enforcing exact element nesting.
+
+    ``HTMLParser`` accepts malformed nesting, so this parser maintains its own
+    stack and reports mismatches without guessing how the source should recover.
+    Only elements and decoded text enter the tree; canonical comparison exposes
+    source differences omitted from that model, such as comments or noncanonical
+    declarations.
+    """
+
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.root = Node("#document", [], 1)
@@ -112,12 +136,16 @@ class DocumentParser(HTMLParser):
         self.problems.append(Problem(self.getpos()[0], message))
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        """Append an element and track it unless the collection treats it as void."""
+
         node = Node(tag, attrs, self.getpos()[0])
         self.stack[-1].children.append(node)
         if tag not in VOID_TAGS:
             self.stack.append(node)
 
     def handle_endtag(self, tag: str) -> None:
+        """Close only the current element; leave mismatched input unrecovered."""
+
         if len(self.stack) == 1:
             self.problem(f"closing </{tag}> has no open element")
             return
@@ -130,6 +158,8 @@ class DocumentParser(HTMLParser):
         self.stack[-1].children.append(data)
 
     def close(self) -> None:
+        """Finish parsing and report every element left open at end of input."""
+
         super().close()
         for node in self.stack[1:]:
             self.problems.append(Problem(node.line, f"element <{node.tag}> is not closed"))
@@ -148,6 +178,12 @@ def text_content(node: Node) -> str:
 
 
 class SemanticValidator:
+    """Enforce the collection schema after parsing produced a trustworthy tree.
+
+    Validation accumulates independent problems, but a malformed parent shape
+    stops checks that would otherwise have to guess which child owns a value.
+    """
+
     def __init__(self) -> None:
         self.problems: list[Problem] = []
 
@@ -155,6 +191,8 @@ class SemanticValidator:
         self.problems.append(Problem(node.line, message))
 
     def expect_children(self, node: Node, tags: list[str]) -> list[Node] | None:
+        """Return children only when their tags and order match the schema exactly."""
+
         actual = elements(node)
         actual_tags = [child.tag for child in actual]
         if actual_tags != tags:
@@ -166,10 +204,14 @@ class SemanticValidator:
         return actual
 
     def expect_attrs(self, node: Node, attrs: list[tuple[str, str | None]]) -> None:
+        """Require the exact attributes and source order used by canonical HTML."""
+
         if node.attrs != attrs:
-            expected = " ".join(f'{key}="{value}"' for key, value in attrs)
-            suffix = f" {expected}" if expected else " no attributes"
-            self.problem(node, f"<{node.tag}> must have{suffix}")
+            if attrs:
+                expected = " ".join(f'{key}="{value}"' for key, value in attrs)
+                self.problem(node, f"<{node.tag}> must have exactly {expected} in that order")
+            else:
+                self.problem(node, f"<{node.tag}> must have no attributes")
 
     def expect_plain_text(self, node: Node) -> None:
         if elements(node):
@@ -178,6 +220,13 @@ class SemanticValidator:
             self.problem(node, f"<{node.tag}> cannot be empty")
 
     def expect_paper_title_sentence_case(self, cite: Node) -> None:
+        """Reject likely title case using alphabetic initials after the first word.
+
+        This is a collection lint heuristic, not a linguistic parser: tokens
+        without alphabetic characters are ignored, and a majority of later
+        initials must be lowercase.
+        """
+
         title = text_content(cite)
         if not title.strip():
             return
@@ -189,7 +238,11 @@ class SemanticValidator:
         subsequent_word_initials = cased_word_initials[1:]
         lowercase_words = sum(initial.islower() for initial in subsequent_word_initials)
         if subsequent_word_initials and lowercase_words * 2 <= len(subsequent_word_initials):
-            self.problem(cite, "paper title must use sentence case; most words after the first must start lowercase")
+            self.problem(
+                cite,
+                "paper title appears title-cased; in sentence case, most words after the "
+                "first must start lowercase",
+            )
 
     def validate(self, root: Node) -> list[Problem]:
         document_children = elements(root)
@@ -209,6 +262,8 @@ class SemanticValidator:
         return self.problems
 
     def validate_head(self, head: Node) -> str | None:
+        """Validate fixed metadata and return the year when title text matches its form."""
+
         self.expect_attrs(head, [])
         children = self.expect_children(head, ["meta", "meta", "title", "link"])
         if children is None:
@@ -224,7 +279,7 @@ class SemanticValidator:
         self.expect_plain_text(title)
         match = re.fullmatch(r"Compound characterization data — .+, (\d{4})", text_content(title))
         if not match:
-            self.problem(title, "<title> must use 'Compound characterization data — credit, year'")
+            self.problem(title, "write <title> as 'Compound characterization data — credit, year'")
             return None
         return match.group(1)
 
@@ -250,6 +305,8 @@ class SemanticValidator:
             self.validate_article(article)
 
     def validate_header(self, header: Node, note_required: bool, document_year: str | None) -> None:
+        """Validate bibliography and require a nonempty note for empty collections."""
+
         self.expect_attrs(header, [])
         children = elements(header)
         invalid_children = len(children) not in (1, 2) or any(child.tag != "p" for child in children)
@@ -264,6 +321,8 @@ class SemanticValidator:
             self.problem(header, "a document without <article> elements must include a nonempty header note")
 
     def validate_bibliography(self, paragraph: Node, document_year: str | None) -> None:
+        """Validate bibliography structure, punctuation, year agreement, and DOI presentation."""
+
         self.expect_attrs(paragraph, [])
         children = paragraph.children
         node_children = [child for child in children if isinstance(child, Node)]
@@ -275,7 +334,11 @@ class SemanticValidator:
             return
         before, cite, after_cite, time, after_time, anchor = children
         if not all(isinstance(part, str) for part in (before, after_cite, after_time)):
-            self.problem(paragraph, "bibliographic punctuation does not match the standard form")
+            self.problem(
+                paragraph,
+                "write bibliography as 'author credit. “title.” ChemRxiv (year). ' followed by "
+                "the existing DOI link",
+            )
             return
         assert isinstance(cite, Node) and isinstance(time, Node) and isinstance(anchor, Node)
         author_text = before.removesuffix(". “").strip()
@@ -286,7 +349,11 @@ class SemanticValidator:
             and after_time == "). "
         )
         if not punctuation_is_valid:
-            self.problem(paragraph, "bibliographic punctuation does not match the standard form")
+            self.problem(
+                paragraph,
+                "write bibliography as 'author credit. “title.” ChemRxiv (year). ' followed by "
+                "the existing DOI link",
+            )
         for node in (cite, time, anchor):
             self.expect_plain_text(node)
         self.expect_attrs(cite, [])
@@ -303,7 +370,7 @@ class SemanticValidator:
             href = anchor.attrs[0][1]
             assert href is not None
             if not href.startswith("https://doi.org/"):
-                self.problem(anchor, "DOI href must be an absolute https://doi.org/ URL")
+                self.problem(anchor, "DOI href must start with https://doi.org/")
             if text_content(anchor) != href:
                 self.problem(anchor, "DOI link text must equal its href")
 
@@ -350,6 +417,12 @@ class SemanticValidator:
             self.expect_no_terminal_punctuation(value, "measurement text")
 
     def validate_formula_fields(self, label_text: str, value: Node) -> None:
+        """Check values positionally paired with semicolon-separated formula labels.
+
+        Restricting the check to labelled fields avoids treating compound and
+        sample identifiers as molecular formulas.
+        """
+
         label_fields = [field.strip() for field in label_text.split(";")]
         value_fields = [field.strip() for field in text_content(value).split(";")]
         invalid_formulas = []
@@ -371,6 +444,8 @@ class SemanticValidator:
             )
 
     def expect_no_terminal_punctuation(self, node: Node, field_name: str) -> None:
+        """Reject a period, semicolon, comma, or colon at the end of a table field."""
+
         if text_content(node).rstrip().endswith((".", ";", ",", ":")):
             self.problem(node, f"{field_name} must not end with punctuation")
 
@@ -382,7 +457,7 @@ class SemanticValidator:
 
         labels = [text_content(source) for source, _locator in references]
         if labels not in (["Main"], ["SI"], ["Main", "SI"]):
-            self.problem(footer, "footer sources must be Main and/or SI, in that order")
+            self.problem(footer, "footer sources must be Main, SI, or Main followed by SI")
         for source, locator in references:
             if source.tag != "cite":
                 self.problem(source, "footer sources must use <cite>")
@@ -392,6 +467,8 @@ class SemanticValidator:
             self.validate_page_locator(footer, locator)
 
     def footer_references(self, footer: Node) -> list[tuple[Node, str]] | None:
+        """Return one or two citation-locator pairs from ordered mixed content."""
+
         parts = footer.children
         if len(parts) == 2 and isinstance(parts[0], Node) and isinstance(parts[1], str):
             return [(parts[0], parts[1])]
@@ -410,12 +487,26 @@ class SemanticValidator:
         return None
 
     def validate_page_locator(self, footer: Node, locator: Node | str) -> None:
+        """Validate page labels and require ``p.`` or ``pp.`` to match cardinality.
+
+        A label such as ``S1-3`` names one section-qualified page. Commas and
+        en dashes, rather than the internal hyphen, make a list or range plural.
+        """
+
         if not isinstance(locator, str):
-            self.problem(footer, "each footer source must be followed by a page locator")
+            self.problem(
+                footer,
+                "check the cited source, then follow each footer source with its page locator, "
+                "such as ', p. 3', ', pp. S3, S7', or ', pp. S1-7–S1-8'",
+            )
             return
         match = re.fullmatch(rf", (p|pp)\. ({PAGE_ITEM}(?:, {PAGE_ITEM})*)", locator)
         if match is None:
-            self.problem(footer, "each footer source must be followed by a page locator")
+            self.problem(
+                footer,
+                "check the cited source, then follow each footer source with its page locator, "
+                "such as ', p. 3', ', pp. S3, S7', or ', pp. S1-7–S1-8'",
+            )
             return
         page_kind, pages = match.groups()
         has_multiple_pages = ", " in pages or "–" in pages
@@ -426,6 +517,8 @@ class SemanticValidator:
 
 
 def validate_markers(line_number: int, line: str) -> list[Problem]:
+    """Check collection marker glyphs and spacing in one decoded physical source line."""
+
     problems: list[Problem] = []
     rendered_line = unescape(line)
     if "●" in rendered_line:
@@ -439,10 +532,14 @@ def validate_markers(line_number: int, line: str) -> list[Problem]:
 
 
 def bounded_notation(notation: str) -> str:
+    """Limit diagnostic evidence to 32 characters without hiding truncation."""
+
     return notation[:29] + "..." if len(notation) > 32 else notation
 
 
 def find_invalid_notation(text: str, patterns: tuple[re.Pattern[str], ...]) -> list[str]:
+    """Return unique bounded matches in source order across all patterns."""
+
     notations: list[str] = []
     for match in sorted(
         (match for pattern in patterns for match in pattern.finditer(text)),
@@ -455,17 +552,29 @@ def find_invalid_notation(text: str, patterns: tuple[re.Pattern[str], ...]) -> l
 
 
 def describe_invalid_notation(notations: list[str]) -> str:
+    """Quote at most three offending forms and report the omitted count."""
+
     shown = ", ".join(repr(notation) for notation in notations[:3])
     omitted = len(notations) - 3
     return shown + (f" and {omitted} more" if omitted > 0 else "")
 
 
 def validate_typographic_scripts(line_number: int, line: str) -> list[Problem]:
+    """Check context-qualified notation on one decoded physical source line.
+
+    Character references are decoded first so alternate HTML spellings cannot
+    bypass the Unicode policy. Matches cannot cross lines and may occur in text,
+    markup, attributes, or comments; the regexes are not a chemical parser.
+    """
+
     problems: list[Problem] = []
     rendered_line = unescape(line)
     if HTML_SCRIPT_ELEMENT.search(rendered_line):
         problems.append(
-            Problem(line_number, "use Unicode superscript or subscript characters, not HTML elements")
+            Problem(
+                line_number,
+                "replace <sup> or <sub> notation with Unicode superscript or subscript characters",
+            )
         )
     invalid_exponents = find_invalid_notation(
         rendered_line,
@@ -559,7 +668,7 @@ def validate_typographic_scripts(line_number: int, line: str) -> list[Problem]:
         problems.append(
             Problem(
                 line_number,
-                "write mass-spectrometry radical-ion notation "
+                "replace noncanonical mass-spectrometry radical-ion notation "
                 f"{describe_invalid_notation(noncanonical_radical_ions)} with the superscript "
                 "charge followed by ˙ (U+02D9 DOT ABOVE), for example [M]⁺˙ or "
                 "(C₂₆H₁₉N₃O₃Cr)⁺˙",
@@ -569,6 +678,8 @@ def validate_typographic_scripts(line_number: int, line: str) -> list[Problem]:
 
 
 def opening_tag(node: Node) -> str:
+    """Render an opening tag with canonical quoting and stored attribute order."""
+
     attributes = "".join(
         f' {name}="{escape(value, quote=True)}"'
         for name, value in node.attrs
@@ -578,6 +689,8 @@ def opening_tag(node: Node) -> str:
 
 
 def render_inline(node: Node) -> str:
+    """Render an inline element and its descendants on one escaped source line."""
+
     content = "".join(
         render_inline(child) if isinstance(child, Node) else escape(child, quote=False)
         for child in node.children
@@ -586,6 +699,8 @@ def render_inline(node: Node) -> str:
 
 
 def separate_children(parent: Node, previous: Node, current: Node) -> bool:
+    """Identify sibling boundaries that require one canonical blank line."""
+
     return (
         parent.tag == "main" and current.tag == "article"
         or parent.tag == "tbody" and previous.tag == current.tag == "tr"
@@ -594,6 +709,8 @@ def separate_children(parent: Node, previous: Node, current: Node) -> bool:
 
 
 def render_element(node: Node, indentation: int = 0) -> list[str]:
+    """Render an element using the collection's canonical whitespace layout."""
+
     prefix = " " * indentation
     if node.tag in VOID_TAGS:
         return [prefix + opening_tag(node)]
@@ -612,11 +729,20 @@ def render_element(node: Node, indentation: int = 0) -> list[str]:
 
 
 def render_document(root: Node) -> str:
+    """Serialize a validated document tree in the sole accepted source format."""
+
     html = elements(root)[0]
     return "<!doctype html>\n" + "\n".join(render_element(html)) + "\n"
 
 
 def validate_canonical_source(source: str, root: Node) -> list[Problem]:
+    """Report only the first difference from canonical serialization.
+
+    Later line comparisons would be displaced after an insertion or deletion
+    and would produce a cascade rather than another independent correction. The
+    expected source excerpt is bounded so the diagnostic remains readable.
+    """
+
     canonical = render_document(root)
     for line_number, (actual, expected) in enumerate(
         zip_longest(source.split("\n"), canonical.split("\n")),
@@ -626,27 +752,42 @@ def validate_canonical_source(source: str, root: Node) -> list[Problem]:
             continue
         if expected is None:
             message = "unexpected line after the canonical document"
-        elif actual is None:
-            message = "canonical document line is missing"
         else:
-            message = "line does not match canonical HTML formatting"
+            expected_excerpt = expected[:117] + "..." if len(expected) > 120 else expected
+            if actual is None and expected == "":
+                message = "document must end with one newline"
+            elif actual is None:
+                message = f"canonical document line is missing; expected {expected_excerpt!r}"
+            else:
+                message = f"line differs from canonical HTML source; expected {expected_excerpt!r}"
         return [Problem(line_number, message)]
     return []
 
 
 def validate_text(source: str) -> list[Problem]:
+    """Return all trustworthy structural, semantic, and line-local problems.
+
+    Parser failures prevent tree-based checks, and semantic failures prevent
+    canonical rendering. Marker and notation checks remain valid on raw source
+    lines and therefore run regardless of earlier failures. Merged diagnostics
+    are sorted by source line and message, not by validation phase.
+    """
+
     parser = DocumentParser()
     parser.feed(source)
     parser.close()
 
     problems = list(parser.problems)
     semantic_problems: list[Problem] = []
+    # Descendant ownership is unreliable until parsing establishes exact nesting.
     if not parser.problems:
         semantic_problems = SemanticValidator().validate(parser.root)
         problems.extend(semantic_problems)
+    # Canonical rendering assumes both a complete tree and the fixed collection schema.
     if not parser.problems and not semantic_problems:
         problems.extend(validate_canonical_source(source, parser.root))
 
+    # These checks depend on each decoded source line, not a trustworthy document tree.
     for line_number, line in enumerate(source.splitlines(), 1):
         problems.extend(validate_markers(line_number, line))
         problems.extend(validate_typographic_scripts(line_number, line))
@@ -654,6 +795,13 @@ def validate_text(source: str) -> list[Problem]:
 
 
 def collect_html_files(paths: list[Path]) -> tuple[list[Path], list[str]]:
+    """Resolve unique collection HTML files and path-specific CLI errors.
+
+    Directories are searched recursively for lowercase ``*.html`` names and
+    exclude ``index.html`` because navigation pages use another schema. A file
+    named directly is accepted by its case-insensitive suffix, including an index.
+    """
+
     files: set[Path] = set()
     errors: list[str] = []
     for path in paths:
@@ -669,7 +817,10 @@ def collect_html_files(paths: list[Path]) -> tuple[list[Path], list[str]]:
                 if candidate.name != "index.html"
             }
             if not found:
-                errors.append(f"{path}:1: no HTML files found")
+                errors.append(
+                    f"{path}:1: no collection .html files found; directory discovery "
+                    "excludes index.html"
+                )
             files.update(found)
         else:
             errors.append(f"{path}:1: path was not found")
@@ -677,13 +828,23 @@ def collect_html_files(paths: list[Path]) -> tuple[list[Path], list[str]]:
 
 
 def main() -> int:
+    """Validate every usable input even when another path fails.
+
+    Path, read, and document failures produce diagnostics on stderr and status
+    1. A wholly clean run reports its file count on stdout and returns 0;
+    argparse owns usage errors separately.
+    """
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "paths",
         nargs="*",
         type=Path,
         default=[Path("ext")],
-        help="HTML files or directories to validate (default: ext)",
+        help=(
+            "collection HTML files, or directories searched recursively for non-index "
+            ".html files (default: ext)"
+        ),
     )
     args = parser.parse_args()
     files, path_errors = collect_html_files(args.paths)
@@ -705,7 +866,8 @@ def main() -> int:
 
     if failed:
         return 1
-    print(f"Validated {len(files)} HTML file(s).")
+    noun = "file" if len(files) == 1 else "files"
+    print(f"Validated {len(files)} collection HTML {noun}.")
     return 0
 
 
