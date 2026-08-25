@@ -84,7 +84,7 @@ INVERTED_BRACKETED_RADICAL_ION = re.compile(
     r"\[M(?:[-+−⁺⁻][˙•∙⋅⸳··․]|[˙•∙⋅⸳··․][-+−⁺⁻])\]"
 )
 FORMULA_FIELD_LABEL = re.compile(r"(?:^|,\s)(?:empirical\s+)?formula$", re.IGNORECASE)
-PAGE_ITEM = r"S?\d+(?:–S?\d+)?"
+PAGE_ITEM = r"(?:S\d+(?:-\d+)?|\d+)(?:–(?:S\d+(?:-\d+)?|\d+))?"
 
 
 @dataclass(frozen=True)
