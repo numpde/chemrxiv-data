@@ -37,10 +37,12 @@ CARET_EXPONENT = re.compile(r"\^[+−-]?\d+")
 BASELINE_POWER_OF_TEN_EXPONENT = re.compile(
     r"(?:\b10−[1-9]\d*|(?:×|·|\*)[ \t]*10-[1-9]\d*)"
 )
+# A numerical percentage is canonical only with one U+0020 space before ``%``.
 # A word character before the number marks source notation such as ``φ1%``.
 # Modifiers such as ``wt%`` have no numerical value immediately before ``%``.
-UNSPACED_PERCENTAGE_VALUE = re.compile(
-    r"(?<!\w)[+−-]?(?:[0-9]+(?:[.,][0-9]+)?|\.[0-9]+)%"
+NONCANONICAL_PERCENTAGE_SPACING = re.compile(
+    r"(?<!\w)[+−-]?(?:[0-9]+(?:[.,][0-9]+)?|\.[0-9]+)"
+    r"(?! %)[^\S\r\n]*%"
 )
 NUCLEAR_ISOTOPE = r"(?:1H|6Li|7Li|11B|13C|15N|17O|19F|27Al|31P|59Co)"
 SUPERSCRIPT_NUCLEAR_ISOTOPE = r"(?:¹H|⁶Li|⁷Li|¹¹B|¹³C|¹⁵N|¹⁷O|¹⁹F|²⁷Al|³¹P|⁵⁹Co)"
@@ -203,6 +205,14 @@ def has_significant_text(node: Node) -> bool:
 
 def text_content(node: Node) -> str:
     return "".join(text_content(child) if isinstance(child, Node) else child for child in node.children)
+
+
+def decoded_text_content(source_fragment: str) -> str:
+    """Return decoded text content without markup, attributes, or comments."""
+
+    parser = DocumentParser()
+    parser.feed(source_fragment)
+    return text_content(parser.root)
 
 
 class SemanticValidator:
@@ -598,8 +608,9 @@ def validate_typographic_scripts(line_number: int, line: str) -> list[Problem]:
     """Check context-qualified notation on one decoded physical source line.
 
     Character references are decoded first so alternate HTML spellings cannot
-    bypass the Unicode policy. Matches cannot cross lines and may occur in text,
-    markup, attributes, or comments; the regexes are not a chemical parser.
+    bypass the Unicode policy. Matches cannot cross lines. Most patterns may
+    occur in text, markup, attributes, or comments; percentage spacing is
+    limited to decoded text content. The regexes are not a chemical parser.
     """
 
     problems: list[Problem] = []
@@ -630,17 +641,20 @@ def validate_typographic_scripts(line_number: int, line: str) -> list[Problem]:
                 "characters, for example cm⁻¹, m², or 10⁵",
             )
         )
-    unspaced_percentage_values = find_invalid_notation(
-        rendered_line,
-        (UNSPACED_PERCENTAGE_VALUE,),
-    )
-    if unspaced_percentage_values:
+    noncanonical_percentage_values: list[str] = []
+    if "%" in rendered_line:
+        rendered_text = decoded_text_content(line)
+        noncanonical_percentage_values = find_invalid_notation(
+            rendered_text,
+            (NONCANONICAL_PERCENTAGE_SPACING,),
+        )
+    if noncanonical_percentage_values:
         problems.append(
             Problem(
                 line_number,
-                "insert a space before % in numerical percentage notation "
-                f"{describe_invalid_notation(unspaced_percentage_values)}; "
-                "write 10 %, not 10%",
+                "use exactly one ordinary space before % in numerical percentage notation "
+                f"{describe_invalid_notation(noncanonical_percentage_values)}; "
+                "write 10 %",
             )
         )
     invalid_prefixes = find_invalid_notation(
