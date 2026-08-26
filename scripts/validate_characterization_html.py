@@ -222,6 +222,22 @@ def decoded_text_content(source_fragment: str) -> str:
     return text_content(parser.root)
 
 
+def identifier_value_lines(root: Node) -> set[int]:
+    """Locate values whose enclosing row explicitly gives them identifier semantics."""
+
+    lines: set[int] = set()
+    for node in elements(root):
+        lines.update(identifier_value_lines(node))
+        if node.tag != "tr":
+            continue
+        row = elements(node)
+        if [child.tag for child in row] != ["th", "td"]:
+            continue
+        if text_content(row[0]).strip() == "Identifier":
+            lines.add(row[1].line)
+    return lines
+
+
 class SemanticValidator:
     """Enforce the collection schema after parsing produced a trustworthy tree.
 
@@ -611,7 +627,12 @@ def has_baseline_formula_scripts(formula: str) -> bool:
     return bool(re.search(r"[0-9]", indices_and_charge)) or formula.endswith(("+", "−", "-"))
 
 
-def validate_typographic_scripts(line_number: int, line: str) -> list[Problem]:
+def validate_typographic_scripts(
+    line_number: int,
+    line: str,
+    *,
+    identifier_value: bool = False,
+) -> list[Problem]:
     """Check context-qualified notation on one decoded physical source line.
 
     Character references are decoded first so alternate HTML spellings cannot
@@ -629,15 +650,17 @@ def validate_typographic_scripts(line_number: int, line: str) -> list[Problem]:
                 "replace <sup> or <sub> notation with Unicode superscript or subscript characters",
             )
         )
+    exponent_patterns = [
+        BASELINE_UNIT_EXPONENT,
+        CARET_EXPONENT,
+        BASELINE_POWER_OF_TEN_EXPONENT,
+        INCOMPLETE_SUPERSCRIPT_EXPONENT,
+    ]
+    if not identifier_value:
+        exponent_patterns.append(BASELINE_POSITIVE_UNIT_EXPONENT)
     invalid_exponents = find_invalid_notation(
         rendered_line,
-        (
-            BASELINE_UNIT_EXPONENT,
-            BASELINE_POSITIVE_UNIT_EXPONENT,
-            CARET_EXPONENT,
-            BASELINE_POWER_OF_TEN_EXPONENT,
-            INCOMPLETE_SUPERSCRIPT_EXPONENT,
-        ),
+        tuple(exponent_patterns),
     )
     if invalid_exponents:
         problems.append(
@@ -874,10 +897,17 @@ def validate_text(source: str) -> list[Problem]:
     if not parser.problems and not semantic_problems:
         problems.extend(validate_canonical_source(source, parser.root))
 
+    identifiers = identifier_value_lines(parser.root) if not parser.problems else set()
     # These checks depend on each decoded source line, not a trustworthy document tree.
     for line_number, line in enumerate(source.splitlines(), 1):
         problems.extend(validate_markers(line_number, line))
-        problems.extend(validate_typographic_scripts(line_number, line))
+        problems.extend(
+            validate_typographic_scripts(
+                line_number,
+                line,
+                identifier_value=line_number in identifiers,
+            )
+        )
     return sorted(problems, key=lambda problem: (problem.line, problem.message))
 
 
