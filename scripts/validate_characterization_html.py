@@ -37,6 +37,12 @@ CARET_EXPONENT = re.compile(r"\^[+−-]?\d+")
 BASELINE_POWER_OF_TEN_EXPONENT = re.compile(
     r"(?:\b10−[1-9]\d*|(?:×|·|\*)[ \t]*10-[1-9]\d*)"
 )
+# Neither the syllabic slash lookalike nor the fraction slash forms a stable
+# superscript exponent.
+CONSTRUCTED_ONE_HALF_POWER = re.compile(
+    r"(?:(?<=\brate)|(?<=[)\]]))¹[ᐟ⁄]²(?![⁰¹²³⁴⁵⁶⁷⁸⁹])",
+    re.IGNORECASE,
+)
 # A numerical percentage is canonical only with one U+0020 space before ``%``.
 # A word character before the number marks source notation such as ``φ1%``.
 # Modifiers such as ``wt%`` have no numerical value immediately before ``%``.
@@ -669,6 +675,21 @@ def validate_typographic_scripts(
                 "replace baseline exponent notation "
                 f"{describe_invalid_notation(invalid_exponents)} with Unicode superscript "
                 "characters, for example cm⁻¹, m², or 10⁵",
+            )
+        )
+    constructed_half_powers: list[str] = []
+    if "ᐟ" in rendered_line or "⁄" in rendered_line:
+        constructed_half_powers = find_invalid_notation(
+            decoded_text_content(line),
+            (CONSTRUCTED_ONE_HALF_POWER,),
+        )
+    if constructed_half_powers:
+        problems.append(
+            Problem(
+                line_number,
+                "replace constructed one-half exponent "
+                f"{describe_invalid_notation(constructed_half_powers)} with radical notation; "
+                "write √(V/s), not (V/s)¹⁄²",
             )
         )
     noncanonical_percentage_values: list[str] = []
