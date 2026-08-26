@@ -19,14 +19,15 @@
     <section>
       <h2>Authority</h2>
       <p>
-        <a href="../scope.html">The collection scope</a> owns admission and
-        semantic representation. The main paper and supporting information own the
-        scientific facts and provenance; acquisition notes establish only which
-        files were acquired or absent. Adhere to the established formats: the scope
-        and validator define paper pages, while an existing dated index supplies the
-        index structure. Existing paper pages are examples, not authorities. The
-        validator does not establish scientific accuracy, completeness, or index
-        structure.
+        Use <a href="../scope.html">the collection scope</a> to decide what to
+        retain and how to represent it. The main paper and acquired supporting
+        information are the scientific sources. Files and acquisition notes in
+        <code>data/YYYY-MM-DD/</code> establish only which sources were acquired or
+        absent. Follow the established paper-page and dated-index formats and use
+        the validator without gaming it. Existing pages are structural examples,
+        not scientific sources. The validator checks paper-page structure and
+        notation; for index pages, it checks notation only. It does not prove
+        scientific accuracy, coverage, or index contents.
       </p>
     </section>
 
@@ -41,53 +42,46 @@
             not mix versions or use existing HTML as a scientific source.
           </p>
           <p>
-            File format does not determine eligibility. Each format needs a
-            maintained inspection method that establishes exhaustive documentary
-            coverage and preserves relevant structure. If none exists, leave the
-            paper incomplete and stop before writing its page or index row; add
-            format support separately. If an eligible record lacks a stable source
-            locator accepted by the scope and validator, leave the paper incomplete
-            and stop before writing its page or index row until that representation
-            is supported. Do not discard a source or treat a partial conversion as
-            complete. The local source set proves only what was acquired for this
-            repository.
+            Inspect every acquired source completely with a safe, read-only method
+            appropriate to its format. File format does not determine eligibility.
+            If a source cannot be inspected completely, or an eligible record
+            cannot be given a source locator accepted by the scope and validator,
+            leave the paper incomplete and do not write its page or index row. Do
+            not discard a source or treat partial coverage as complete. The local
+            source set proves only what was acquired for this repository.
           </p>
         </li>
 
         <li>
           <h3>Inspect every source</h3>
           <p>
-            Search text that exposes the scientific content and reading order
-            reliably enough to locate analytical records, then inspect each
-            candidate in a directly inspected source representation. For PDFs,
-            verify candidates against rendered pages and inspect every page that
-            cannot be searched reliably. A maintained structured-document method
-            must inspect every documentary-bearing part, including tables, sheets,
-            annotations, hidden parts, and embedded documents. A maintained archive
-            method must recursively enumerate and inspect every documentary member.
-            Never execute macros, scripts, embedded programs, or other active
-            content. A search hit is not proof of a complete record, and a failed
-            search is not proof that no record exists.
+            Use searchable text to locate candidate analytical records, then verify
+            them in a directly inspected source representation. Inspect every PDF
+            page and verify retained records against rendered pages. For other
+            formats, inspect all content that can carry documentary information,
+            including tables, sheets, notes, annotations, and embedded documents;
+            recursively inspect documentary files inside archives. Never execute
+            macros, scripts, embedded programs, or other active content. A search
+            hit is not proof of a complete record, and a failed search is not proof
+            that no record exists.
           </p>
         </li>
 
         <li>
           <h3>Write the paper page</h3>
           <p>
-            Apply the collection scope record by record and follow the validator’s
-            paper-page format. Name the HTML after the main-paper source stem,
-            without its extension, and place it in <code>ext/YYYY-MM-DD/</code>.
-            Read the authors, title, year, and versioned DOI from the main paper;
-            render the title in sentence case. In the paper bibliography, link only
-            the DOI.
+            Apply the collection scope record by record, follow the established
+            paper-page format, and satisfy the validator. Name the HTML after the
+            main-paper source stem, without its extension, and place it in
+            <code>ext/YYYY-MM-DD/</code>. Read the authors, title, year, and
+            versioned DOI from the main paper; render the title in sentence case.
+            In the paper bibliography, link only the DOI.
           </p>
           <p>
-            Create a negative page only after complete source coverage finds no
-            eligible record. Review all source content, not only search hits. For a
-            PDF, inspect every rendered page; for another format, inspect every
-            documentary-bearing part. Use acquisition evidence and
-            the scope’s wording to describe the supporting-information situation;
-            local absence does not prove nonexistence.
+            Create a negative page only after complete inspection of every acquired
+            source finds no eligible record. Use acquisition evidence and the
+            scope’s wording to describe the supporting-information situation; local
+            absence does not prove nonexistence.
           </p>
         </li>
 
@@ -98,33 +92,40 @@
             identifier, label, value, qualifier, and locator with the source in a
             second pass. Check that no eligible record was skipped. Have a
             source-aware reviewer who did not transcribe the page challenge
-            coverage, admission, transcription, ownership, and provenance; fix
-            every substantiated defect.
+            coverage, scope decisions, transcription, record grouping, and
+            provenance; fix every substantiated defect.
           </p>
         </li>
 
         <li>
           <h3>Update the dated index</h3>
           <p>
-            Follow the established dated-index format. An existing index must
-            contain exactly one row for the paper whose link, displayed title, and
-            analysis cells agree with the paper page. When creating an index, use
-            an existing dated index as the structural reference and verify a
-            one-to-one correspondence between every sibling paper page and row.
+            Follow the established dated-index format. The dated index must contain
+            exactly one row for every sibling paper page and no other rows. Derive
+            each link, displayed title, and analysis-availability cell only from the
+            retained paper page; do not infer availability from the source
+            documents. When creating a dated index, use an existing dated index as
+            the structural reference and add its <code>YYYY-MM-DD/</code> directory
+            link to <code>ext/index.html</code> in ascending date order.
           </p>
         </li>
 
         <li>
           <h3>Validate the change</h3>
-          <p>From the repository root, run:</p>
-          <pre><code>python3 scripts/validate_characterization_html.py ext/YYYY-MM-DD/MAIN-SOURCE-STEM.html ext/YYYY-MM-DD/index.html</code></pre>
+          <p>During paper processing, run:</p>
+          <pre><code>python3 scripts/validate_characterization_html.py ext/YYYY-MM-DD/MAIN-SOURCE-STEM.html</code></pre>
+          <p>Before completing a date, run:</p>
+          <pre><code>python3 scripts/validate_characterization_html.py ext/YYYY-MM-DD/</code></pre>
           <p>
             Fix the underlying defect behind every reported problem; do not bypass
             or game the validator by suppressing diagnostics, weakening required
             content or structure, or changing source data merely to pass. Review
-            status and ensure the diff contains only the intended paper and index
-            changes, with no extraction artefacts. Do not commit or publish unless
-            requested.
+            the dated index manually for one-to-one paper coverage and accurate
+            titles and analysis cells. Verify the date link in
+            <code>ext/index.html</code>. Run <code>git status</code> and inspect the
+            diff to ensure it contains only the intended paper pages, dated index,
+            and parent-index link, with no extraction artefacts. Do not commit or
+            publish unless requested.
           </p>
         </li>
       </ol>
@@ -133,8 +134,10 @@
     <section>
       <h2>Completion</h2>
       <p>
-        Processing remains incomplete until every step above is complete and its
-        stated proof holds.
+        A date is complete when every acquired source has been inspected completely,
+        every acquired main paper has an audited page, every paper page has exactly
+        one accurate dated-index row, the dated index is linked from
+        <code>ext/index.html</code>, and the final validation command passes.
       </p>
     </section>
   </main>
