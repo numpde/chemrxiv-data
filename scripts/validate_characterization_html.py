@@ -411,10 +411,14 @@ class SemanticValidator:
             return
         assert isinstance(cite, Node) and isinstance(time, Node) and isinstance(anchor, Node)
         author_text = before.removesuffix(". “").strip()
+        title_ends_with_question_or_exclamation = text_content(cite).rstrip().endswith(("?", "!"))
+        expected_after_title = (
+            "” ChemRxiv (" if title_ends_with_question_or_exclamation else ".” ChemRxiv ("
+        )
         punctuation_is_valid = (
             bool(author_text)
             and before.endswith(". “")
-            and after_cite == ".” ChemRxiv ("
+            and after_cite == expected_after_title
             and after_time == "). "
         )
         if not punctuation_is_valid:
