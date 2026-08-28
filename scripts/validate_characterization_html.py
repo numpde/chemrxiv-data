@@ -67,7 +67,7 @@ BASELINE_NUCLEAR_ISOTOPE = re.compile(
     r"(?<![A-Za-z0-9])(?:"
     rf"{NUCLEAR_ISOTOPE}"
     r"(?=(?:[{}]|"
-    r"[^<\n]{0,48}(?:[A-Za-z]*NMR\b|\b(?:PFG|HSQC|HMBC|HETCOR|shift|frequency|signal|nucleus|nuclei)\b)"
+    r"[ \t-]*(?:[A-Za-z]*NMR|PFG|HSQC|HMBC|HETCOR|(?:chemical[ \t]+)?shift|frequency|signal|nucleus|nuclei)\b"
     r"|-labelled\b))"
     rf"|(?<=[–→↔]){NUCLEAR_ISOTOPE}"
     r"|7Li(?=[ \t]+longitudinal relaxation\b)"
