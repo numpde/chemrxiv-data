@@ -97,7 +97,7 @@ CALCULATED_FORMULA = re.compile(
     rf"[⁰¹²³⁴⁵⁶⁷⁸⁹]*[A-Z][{FORMULA_TOKEN_CHARACTERS}]*)"
 )
 FORMULA_STOICHIOMETRIC_COEFFICIENT = re.compile(
-    r"(?<=[·‧])\d+(?:\.\d+)?(?=[⁰¹²³⁴⁵⁶⁷⁸⁹]*[A-Z])"
+    r"(?<=[·‧])\d+(?:\.\d+)?(?= ?(?:[⁰¹²³⁴⁵⁶⁷⁸⁹]*[A-Z]|[a-z])|$)"
 )
 # These patterns recognize only formula contexts established by nearby calculated-formula
 # wording or a radical-ion suffix; they do not define a molecular-formula grammar.
