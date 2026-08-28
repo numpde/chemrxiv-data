@@ -739,7 +739,8 @@ def validate_typographic_scripts(
             )
         )
     invalid_formulas: list[str] = []
-    for match in CALCULATED_FORMULA.finditer(rendered_line):
+    formula_text = re.sub(r"\[[^\]\n]{0,127}\][⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻]*", "", rendered_line)
+    for match in CALCULATED_FORMULA.finditer(formula_text):
         formula = match.group("formula")
         if not has_baseline_formula_scripts(formula):
             continue
