@@ -22,6 +22,7 @@ VOID_TAGS = {"link", "meta"}
 MARKER_BEFORE_NUMBER = re.compile(r"(?:•◊|•|◊)([ \t]*)(?=[+−-]?(?:\d|\.\d))")
 SOURCE_PRESENTATION_TERM_IN_LABEL = re.compile(r"\b(?:table|fig(?:ure)?)s?\b", re.IGNORECASE)
 HTML_SCRIPT_ELEMENT = re.compile(r"<\s*/?\s*(?:sup|sub)\b", re.IGNORECASE)
+SPACE_GROUP_VALUE = re.compile(r"\bspace group:\s+\S+", re.IGNORECASE)
 
 # Scientific text also contains valid baseline digits in compound and sample identifiers.
 # Restrict these patterns to established notation contexts so those digits are not rejected.
@@ -140,7 +141,8 @@ INVERTED_BRACKETED_RADICAL_ION = re.compile(
 )
 FORMULA_FIELD_LABEL = re.compile(r"(?:^|,\s)(?:empirical\s+)?formula$", re.IGNORECASE)
 # A hyphen is part of a section-qualified page label; an en dash joins range endpoints.
-PAGE_ITEM = r"(?:S\d+(?:-\d+)?|\d+)(?:–(?:S\d+(?:-\d+)?|\d+))?"
+PAGE_LABEL = r"(?:S(?:\d+(?:-\d+)?|-\d+)|\d+)"
+PAGE_ITEM = rf"{PAGE_LABEL}(?:–{PAGE_LABEL})?"
 
 
 @dataclass(frozen=True)
@@ -664,8 +666,9 @@ def validate_typographic_scripts(
     ]
     if not identifier_value:
         exponent_patterns.append(BASELINE_POSITIVE_UNIT_EXPONENT)
+    exponent_text = SPACE_GROUP_VALUE.sub("", rendered_line)
     invalid_exponents = find_invalid_notation(
-        rendered_line,
+        exponent_text,
         tuple(exponent_patterns),
     )
     if invalid_exponents:
