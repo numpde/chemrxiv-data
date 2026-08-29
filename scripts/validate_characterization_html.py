@@ -51,6 +51,13 @@ NONCANONICAL_PERCENTAGE_SPACING = re.compile(
     r"(?<!\w)[+−-]?(?:[0-9]+(?:[.,][0-9]+)?|\.[0-9]+)"
     r"(?! %)[^\S\r\n]*%"
 )
+MISSING_SUPPORTING_INFORMATION_PDF = re.compile(
+    r"\b(?:"
+    r"no separate supporting information PDF (?:was|is) (?:found|available)"
+    r"|a separate supporting information PDF (?:was|is) not (?:found|available)"
+    r")\b",
+    re.IGNORECASE,
+)
 NUCLEAR_ISOTOPE = r"(?:1H|6Li|7Li|11B|13C|15N|17O|19F|27Al|31P|59Co)"
 SUPERSCRIPT_NUCLEAR_ISOTOPE = r"(?:¹H|⁶Li|⁷Li|¹¹B|¹³C|¹⁵N|¹⁷O|¹⁹F|²⁷Al|³¹P|⁵⁹Co)"
 ANY_NUCLEAR_ISOTOPE = rf"(?:{NUCLEAR_ISOTOPE}|{SUPERSCRIPT_NUCLEAR_ISOTOPE})"
@@ -222,6 +229,14 @@ def text_content(node: Node) -> str:
     return "".join(text_content(child) if isinstance(child, Node) else child for child in node.children)
 
 
+def descendant_elements(node: Node):
+    """Yield descendant elements in source order."""
+
+    for child in elements(node):
+        yield child
+        yield from descendant_elements(child)
+
+
 def decoded_text_content(source_fragment: str) -> str:
     """Return decoded text content without markup, attributes, or comments."""
 
@@ -386,6 +401,13 @@ class SemanticValidator:
         for note in children[1:]:
             self.expect_attrs(note, [])
             self.expect_plain_text(note)
+            self.expect_no_terminal_punctuation(note, "header note")
+            if MISSING_SUPPORTING_INFORMATION_PDF.search(text_content(note)):
+                self.problem(
+                    note,
+                    "describe missing supporting information as a file, not a PDF; name PDF "
+                    "only when its format is itself a verified fact",
+                )
         if note_required and len(children) == 1:
             self.problem(header, "a document without <article> elements must include a nonempty header note")
 
@@ -517,7 +539,7 @@ class SemanticValidator:
             )
 
     def expect_no_terminal_punctuation(self, node: Node, field_name: str) -> None:
-        """Reject a period, semicolon, comma, or colon at the end of a table field."""
+        """Reject a period, semicolon, comma, or colon at the end of a collection field."""
 
         if text_content(node).rstrip().endswith((".", ";", ",", ":")):
             self.problem(node, f"{field_name} must not end with punctuation")
@@ -949,6 +971,82 @@ def validate_navigation_text(source: str) -> list[Problem]:
     return sorted(problems, key=lambda problem: (problem.line, problem.message))
 
 
+def paper_title(source: str) -> str | None:
+    """Return the bibliographic title owned by a structurally parseable paper page."""
+
+    parser = DocumentParser()
+    parser.feed(source)
+    parser.close()
+    if parser.problems:
+        return None
+    for node in descendant_elements(parser.root):
+        if node.tag != "header":
+            continue
+        for child in descendant_elements(node):
+            if child.tag == "cite":
+                return text_content(child)
+        return None
+    return None
+
+
+def validate_dated_index_projection(path: Path, source: str) -> list[Problem]:
+    """Check that a dated index is a complete title projection of sibling paper pages."""
+
+    if path.name != "index.html" or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", path.parent.name):
+        return []
+
+    parser = DocumentParser()
+    parser.feed(source)
+    parser.close()
+    if parser.problems:
+        return parser.problems
+
+    problems: list[Problem] = []
+    linked: dict[str, Node] = {}
+    for anchor in (node for node in descendant_elements(parser.root) if node.tag == "a"):
+        attributes = dict(anchor.attrs)
+        href = attributes.get("href")
+        if href is None or not href.endswith(".html"):
+            continue
+        if Path(href).name != href:
+            problems.append(Problem(anchor.line, "dated-index paper links must use sibling filenames"))
+            continue
+        if href in linked:
+            problems.append(Problem(anchor.line, f"dated index repeats paper link {href!r}"))
+            continue
+        linked[href] = anchor
+
+    sibling_pages = {
+        sibling.name
+        for sibling in path.parent.glob("*.html")
+        if sibling.name != "index.html"
+    }
+    for missing in sorted(sibling_pages - linked.keys()):
+        problems.append(Problem(1, f"dated index does not link sibling paper page {missing!r}"))
+    for href, anchor in linked.items():
+        target = path.parent / href
+        if href not in sibling_pages:
+            problems.append(Problem(anchor.line, f"dated-index paper link {href!r} was not found"))
+            continue
+        try:
+            target_title = paper_title(target.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError) as error:
+            problems.append(Problem(anchor.line, f"could not read dated-index target {href!r}: {error}"))
+            continue
+        if target_title is None:
+            problems.append(
+                Problem(anchor.line, f"could not determine paper title in {href!r}")
+            )
+        elif text_content(anchor) != target_title:
+            problems.append(
+                Problem(
+                    anchor.line,
+                    f"dated-index title must exactly match the paper title in {href!r}",
+                )
+            )
+    return sorted(problems, key=lambda problem: (problem.line, problem.message))
+
+
 def collect_html_files(paths: list[Path]) -> tuple[list[Path], list[str]]:
     """Resolve unique collection HTML files and path-specific CLI errors.
 
@@ -1006,11 +1104,12 @@ def main() -> int:
             print(f"{path}:1: {error}", file=sys.stderr)
             failed = True
             continue
-        problems = (
-            validate_navigation_text(source)
-            if path.name == "index.html"
-            else validate_text(source)
-        )
+        if path.name == "index.html":
+            problems = validate_navigation_text(source)
+            problems.extend(validate_dated_index_projection(path, source))
+            problems.sort(key=lambda problem: (problem.line, problem.message))
+        else:
+            problems = validate_text(source)
         failed = failed or bool(problems)
         for problem in problems:
             print(f"{path}:{problem.line}: {problem.message}", file=sys.stderr)
